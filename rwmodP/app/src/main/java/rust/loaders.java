@@ -1,20 +1,20 @@
 package rust;
 import java.util.Arrays;
-import rust.copyKey;
+import rust.loaders;
 
-public class copyKey implements Comparable {
+public class loaders implements Comparable {
  public int compareTo(Object o) {
-  copyKey obj=(copyKey)o;
+  loaders obj=(loaders)o;
   int i=Integer.compare(hashCode, obj.hashCode);
   if (i != 0)return i;
-  loder orr[]=copy;
-  loder irr[]=obj.copy;
+  loader orr[]=copy;
+  loader irr[]=obj.copy;
   int k=orr.length;
   i=k-irr.length;
   if(i!=0)return i;
   for(;--k>=0;){
-  loder p1=orr[k];
-  loder p2=irr[k];     
+  loader p1=orr[k];
+  loader p2=irr[k];     
   if (p1==p2)continue;
    i = Integer.compare(p1.hashCode(), p2.hashCode());
    if (i != 0)return i;
@@ -29,9 +29,9 @@ public class copyKey implements Comparable {
   } 
   return 0;   
  }
- public loder copy[];
+ public loader copy[];
  public int hashCode;
- public copyKey(loder copy[]) {
+ public loaders(loader copy[]) {
   hashCode = Arrays.hashCode(copy);
   this.copy = copy;
  }

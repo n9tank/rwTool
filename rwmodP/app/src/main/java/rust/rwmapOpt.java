@@ -6,22 +6,21 @@ import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
-import carsh.log;
-import com.googlecode.pngtastic.core.PngImage;
-import com.googlecode.pngtastic.core.PngOptimizer;
+import com.nicdahlquist.pngquant.LibPngQuant;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.zip.Deflater;
-import java.util.zip.DeflaterOutputStream;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 import javax.xml.parsers.DocumentBuilder;
@@ -32,9 +31,12 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import java.util.Base64;
+import org.libDeflate.UIPost;
+import java.nio.file.Files;
+import java.io.IOException;
+import java.nio.file.Path;
 
-public class rwmap implements Runnable {
+public class rwmapOpt implements Runnable {
  public static class key implements Comparable {
   public int hash;  
   public String str;
@@ -71,219 +73,13 @@ public class rwmap implements Runnable {
    return compareTo(obj) == 0;
   }
  }
- ui ui;
+ UIPost ui;
  File in;
  File ou;
  static HashMap<String,HashSet> remove;
- static HashMap<key,key> units=new HashMap();
+ static HashMap<key,key> units;
  static HashMap<String,String> oldunits;
- static{
-  HashMap old=new HashMap();
-  oldunits = old;
-  old.put("tank", "Tank");
-  old.put("extractor", "Extractor");
-  old.put("airShip", "airship");
-  old.put("turret", "Turret");
-  old.put("antiAirTurret", "AntiAirTurret");
-  old.put("helicopter", "Helicopter");
-  old.put("artillery", "Artillery");
-  old.put("turret_flamethrower", "Turret_flamethrower");
-  old.put("laserTank", "lasertank");
-  old.put("turretT2", "TurretT2");
-  old.put("antiAirTurretT2", "AntiAirTurretT2");
-  old.put("turret_artillery", "Turret_artillery");
-  old.put("mammothTank", "mammothtank");
-  old.put("turretT3", "TurretT3");
-  old.put("experimentalTank", "experimentaltank");
-  old.put("AntiNukeLaucher", "antiNukeLaucher");
-  old.put("NukeLaucher", "nukeLaucher");
-  add(270, "mechGun", 1);
-  add(266, "lightGunship", 1);
-  add(265, "scout", 1);
-  add(262, "mechLaser", 1);
-  add(261, "mechMissile", 1);
-  add(258, "c_turret_t2_flame", 0);
-  add(257, "c_turret_t1_artillery", 0);
-  add(256, "c_turret_t2_gun", 0);
-  add(254, "c_turret_t2_flame", 1);
-  add(253, "c_turret_t1_artillery", 1);
-  add(252, "c_turret_t2_gun", 1);
-  add(247, "nautilusSubmarine", -1);
-  add(246, "heavyMissileShip", -1);
-  add(245, "nautilusSubmarineSurface", -1);
-  add(244, "experiementalCarrier", -1);
-  add(240, "heavyHoverTank", -1);
-  add(239, "c_laserTank", -1);
-  add(238, "gunShip", -1);
-  add(237, "dropship", -1);
-  add(236, "c_mammothTank", -1);
-  add(235, "c_experimentalTank", -1);
-  add(233, "fabricator", -1);
-  add(232, "repairbay", -1);
-  add(231, "experimentalLandFactory", -1);
-  add(230, "laserDefence", -1);
-  add(229, "battleShip", -1);
-  add(228, "gunBoat", -1);
-  add(227, "hovercraft", -1);
-//add(226,"scoutShip",-1);
-  add(225, "attackSubmarine", -1);
-  add(224, "extractorT1", -1);
-  add(223, "airFactory", -1);
-  add(222, "landFactory", -1);
-  add(221, "seaFactory", -1);
-  add(219, "amphibiousJet", -1);
-  add(218, "c_interceptor", -1);
-  add(217, "c_helicopter", -1);
-  add(215, "c_antiAirTurret", -1);
-  add(214, "c_turret_t1", -1);
-  add(213, "commandCenter", -1);
-  add(212, "hoverTank", -1);
-  add(211, "heavyTank", -1);
-  add(210, "c_artillery", -1);
-  add(209, "c_tank", -1);
-  add(208, "builder", -1);
-  add(207, "builderShip", -1);
-  add(190, "bugMeleeLarge", 1);
-  add(189, "bugMeleeSmall", 1);
-  add(188, "crystalResource", -1);
-  add(184, "bugRanged", 1);
-  add(183, "bugNest", 1);
-  add(182, "bugSpore", 1);
-  add(181, "bugMelee", 1);
-  add(180, "ladyBug", 1);
-  add(178, "commandCenter", 9);
-  add(177, "builder", 9);
-  add(175, "bugRanged", 0);
-  add(174, "bugNest", 0);
-  add(173, "bugSpore", 0);
-  add(172, "bugMelee", 0);
-  add(171, "ladyBug", 0);
-  add(160, "commandCenter", 8);
-  add(159, "builder", 8);
-  add(158, "commandCenter", 7);
-  add(157, "builder", 7);
-  add(156, "commandCenter", 6);
-  add(155, "builder", 6);
-  add(154, "commandCenter", 5);
-  add(153, "builder", 5);
-  add(148, "bugRanged", 4);
-  add(147, "bugNest", 4);
-  add(146, "bugSpore", 4);
-  add(145, "bugMelee", 4);
-  add(144, "ladyBug", 4);
-  add(141, "commandCenter", 4);
-  add(136, "builder", 4);
-  add(125, "antiNukeLauncherC", 3);
-  add(124, "nukeLauncherC", 3);
-  add(120, "gunBoat", 3);
-  add(119, "hovercraft", 3);
-//add(118,"scoutShip",3);
-  add(109, "c_helicopter", 3);
-  add(105, "commandCenter", 3);
-  add(102, "heavyHoverTank", 3);
-  add(101, "experimentalSpider", 3);
-  add(100, "builder", 3);
-  add(98, "extractorT1", 2);
-  add(97, "airFactory", 2);
-  add(96, "landFactory", 2);
-  add(93, "combatEngineer", 1);
-  add(92, "missileTank", 1);
-  add(91, "heavyBattleship", 1);
-  add(90, "experimentalDropship", 1);
-  add(89, "c_antiAirTurret", 2);
-  add(88, "c_turret_t1", 2);
-  add(87, "commandCenter", 2);
-  add(85, "heavyTank", 2);
-  add(84, "heavyHoverTank", 2);
-  add(83, "c_tank", 2);
-  add(82, "builder", 2);
-  add(81, "experimentalSpider", 2);
-  add(80, "antiNukeLaucherC", 1);
-  add(79, "nukeLauncherC", 1);
-  add(78, "heavyHoverTank", 1);
-  add(77, "c_laserTank", 1);
-  add(76, "gunShip", 1);
-  add(75, "dropship", 1);
-  add(74, "c_mammothTank", 1);
-  add(73, "c_experimentalTank", 1);
-  add(72, "experimentalHoverTank", 1);
-  add(71, "fabricator", 1);
-  add(70, "repairbay", 1);
-  add(69, "experimentalLandFactory", 1);
-  add(68, "laserDefence", 1);
-  add(67, "battleShip", 1);
-  add(66, "gunBoat", 1);
-  add(65, "hovercraft", 1);
-//add(64,"scoutShip",1);
-  add(63, "attackSubmarine", 1);
-  add(62, "extractorT1", 1);
-  add(61, "airFactory", 1);
-  add(60, "landFactory", 1);
-  add(59, "seaFactory", 1);
-  add(58, "mechFactory", 1);
-  add(57, "amphibiousJet", 1);
-  add(56, "c_interceptor", 1);
-  add(55, "c_helicopter", 1);
-  add(54, "experimentalSpider", 1);
-  add(53, "c_antiAirTurret", 1);
-  add(52, "c_turret_t1", 1);
-  add(51, "commandCenter", 1);
-  add(50, "hoverTank", 1);
-  add(49, "heavyTank", 1);
-  add(48, "c_artillery", 1);
-  add(47, "c_tank", 1);
-  add(46, "builder", 1);
-  add(45, "builderShip", 1);
-  add(42, "mechBunker", 0);
-  add(41, "mechMinigun", 0);
-  add(40, "bomber", 0);
-  add(39, "combatEngineer", 0);
-  add(38, "missileTank", 0);
-  add(37, "heavyBattleship", 0);
-  add(36, "experimentalDropship", 0);
-  add(35, "antiNukeLaucherC", 0);
-  add(34, "nukeLauncherC", 0);
-  add(33, "heavyHoverTank", 0);
-  add(32, "c_laserTank", 0);
-  add(31, "gunShip", 0);
-  add(30, "dropship", 0);
-  add(29, "c_mammothTank", 0);
-  add(28, "c_experimentalTank", 0);
-  add(27, "experimentalHoverTank", 0);
-  add(26, "fabricator", 0);
-  add(25, "repairbay", 0);
-  add(24, "experimentalLandFactory", 0);
-  add(23, "laserDefence", 0);
-  add(22, "battleShip", 0);
-  add(21, "gunBoat", 0);
-  add(20, "hovercraft", 0);
-//add(19,"scoutShip",0);
-  add(18, "attackSubmarine", 0);
-  add(17, "extractorT1", 0);
-  add(16, "airFactory", 0);
-  add(15, "landFactory", 0);
-  add(14, "seaFactory", 0);
-  add(13, "mechFactory", 0);
-  add(12, "amphibiousJet", 0);
-  add(11, "c_interceptor", 0);
-  add(10, "c_helicopter", 0);
-  add(9, "experimentalSpider", 0);
-  add(8, "c_antiAirTurret", 0);
-  add(7, "c_turret_t1", 0);
-  add(6, "commandCenter", 0);
-  add(5, "hoverTank", 0);
-  add(4, "heavyTank", 0);
-  add(3, "c_artillery", 0);
-  add(2, "c_tank", 0);
-  add(1, "builder", 0);
-  add(0, "builderShip", 0);
- } 
- public static void add(int id, String str, int team) {
-  key key=new key(str, team);
-  key.id = id;
-  units.putIfAbsent(key, key);
- }
- public rwmap(File i, File u, ui uo) {
+ public rwmapOpt(File i, File u, UIPost uo) {
   in = i;
   ou = u;
   ui = uo;
@@ -354,14 +150,36 @@ public class rwmap implements Runnable {
   buffer.flip();
   return buffer;
  }
- //压缩等级12，什么时候把图片搞搞？
  public static ByteBuffer deflate(ByteBuffer buf) {
-  LibdeflateCompressor def=new LibdeflateCompressor(12);
-  ByteBuffer ebuf=ByteBuffer.allocate(LibdeflateJavaUtils.getBufSize(buf.limit(), true));
-  def.compress(buf, ebuf, 1);
+  LibdeflateCompressor def=new LibdeflateCompressor(12, 1);
+  ByteBuffer ebuf=ByteBuffer.allocate(LibdeflateJavaUtils.getBufSize(buf.limit(), 1));
+  def.compress(buf, ebuf);
   def.close();
   ebuf.flip();
   return ebuf;
+ }
+ public static File openTmp() throws IOException {
+  Path tmp=Files.createTempFile("", "");
+  Files.deleteIfExists(tmp);
+  return tmp.toFile();
+ }
+ public static byte[] optpng(Bitmap bm2) throws Exception {
+  File tmp=openTmp();
+  //这是pngQuant-Android的屎优化不动
+  FileOutputStream out=new FileOutputStream(tmp);
+  bm2.compress(Bitmap.CompressFormat.PNG, 100, out);
+  bm2.recycle();
+  out.close();
+  File optmp=openTmp();
+  //optmp.createNewFile();
+  LibPngQuant.pngQuantFile(tmp, optmp, 65, 80, 1, 0.5f);
+  tmp.delete();
+  FileInputStream in = new FileInputStream(optmp);
+  byte[] brr=new byte[in.available()];
+  in.read(brr);
+  in.close();
+  optmp.delete();
+  return brr;
  }
  //懒得搞并行放这里了
  //https://github.com/Timeree/RwMapCompressor
@@ -375,13 +193,11 @@ public class rwmap implements Runnable {
    Node pr= getFirst(0, map);
    int max=0;
    int unitid=0;   
-   ByteOut out=new ByteOut();
    ArrayList layer=new ArrayList();
    Node unitnode=null;
    byte[] buf=new byte[8192];
    if ("properties".equals(pr.getNodeName()))map.removeChild(pr);
    NodeList nodeList =map.getChildNodes();
-   PngOptimizer opt=new PngOptimizer();
    for (int i =nodeList.getLength();--i >= 0;) {
 	Node item = nodeList.item(i);
     String type=item.getNodeName(); 
@@ -537,15 +353,8 @@ public class rwmap implements Runnable {
             v = n;  
            }                           
           }
-          out.reset();                      
-          bm2.compress(Bitmap.CompressFormat.PNG, 100, out);
           bmp.recycle();
-          bm2.recycle();                      
-          PngImage png= opt.optimize(new PngImage(new ByteArrayInputStream(out.get(), 0, out.size())), false, 9); 
-          out.reset();
-          png.writeDataOutputStream(new DataOutputStream(out));
-          ByteBuffer buff=Base64.getEncoder().encode(ByteBuffer.wrap(out.get(), 0, out.size()));
-          property.setTextContent(new String(buff.array()));
+          property.setTextContent(Base64.getEncoder().encodeToString(optpng(bm2)));
          }
         }                     
        }
@@ -698,11 +507,10 @@ public class rwmap implements Runnable {
 	buff.close();
    }
   } catch (Throwable e) {
-   log.e(this, e);
    ex = e;
   }
   if (ex != null)ou.delete();
-  ui.end(ex);
+  ui.accept(zipunpack.toList(ex));
  }
  public static void outxml(Node map, BufferedWriter out) throws Exception {
   NodeList list=map.getChildNodes();

@@ -1,18 +1,23 @@
 package rust;
 
 import java.io.File;
-import java.io.FilterInputStream;
 import java.io.InputStream;
-import java.lang.reflect.Field;
-import java.nio.charset.Charset;
+import java.nio.charset.Iso;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import org.libDeflate.UIPost;
+import org.libDeflate.ZipEntryInput;
 import org.libDeflate.ZipEntryM;
 import org.libDeflate.ZipEntryOutput;
+import java.util.Collections;
+import android.util.Log;
+import org.libDeflate.ParallelDeflate;
 
 public class zipunpack implements Runnable {
  public static class name {
@@ -22,21 +27,13 @@ public class zipunpack implements Runnable {
    name = str;
    conts = con;
   } 
- }  
+ }
  File in;
  File ou;
- ui ui;
+ UIPost ui;
  boolean raw;
  static int boomlen; 
- static Field unwarp;
- static{
-  try {
-   Field fid= FilterInputStream.class.getDeclaredField("in");
-   fid.setAccessible(true);
-   unwarp = fid;   
-  } catch (Throwable e) {}  
- }
- public zipunpack(File i, File o, boolean fast, ui u) {
+ public zipunpack(File i, File o, boolean fast, UIPost u) {
   in = i;
   ou = o;
   ui = u;
@@ -66,56 +63,57 @@ public class zipunpack implements Runnable {
   }
   return new name(name, conts);
  }
- public static InputStream getRaw(InputStream io, ZipEntry en)throws Exception {    
-  return en.getMethod() == 0 ?io: (InputStream)unwarp.get(io);
- } 
+ public static List<Throwable> toList(Throwable e) {
+  return e == null ?null: Collections.singletonList(e);
+ }
  public void run() {
   Throwable ex=null;
-  Charset encode=StandardCharsets.ISO_8859_1;  
   try {
-   ZipFile zip= new ZipFile(in, encode);
+   ZipFile zip= new ZipFile(in, StandardCharsets.ISO_8859_1);
    try {
-    ZipEntryOutput zipout=new ZipEntryOutput(ou);
-    zipout.setCharset(encode);
+    ZipEntryOutput zipout=new ZipEntryOutput(ou, 16384, new Iso());
+    zipout.flag = (byte)zipout.igonUtf8;
     HashSet set=new HashSet();
     StringBuilder str=new StringBuilder();
     Enumeration all=zip.entries();   
     Random ran=new Random();
-    long time=System.currentTimeMillis();
-    byte buf[]=zipout.buf;
+    int time=ZipEntryM.dosTime(System.currentTimeMillis());
+    byte buf[]=new byte[16384];
     while (all.hasMoreElements()) {
      ZipEntry en=(ZipEntry)all.nextElement();
      String name=en.getName();
      if (name.endsWith("\\"))continue;
+     if (!raw || en.getCompressedSize() == 0)en.setMethod(0);
      try {
       InputStream input= zip.getInputStream(en);
       try {
        InputStream io=input;
-       if (raw)io = getRaw(input, en);
-       int size = io.read(buf);
+       if (raw)io = ZipEntryInput.getRaw(io, en);
+       int size = ParallelDeflate.readLoop(io, buf);
        if (size <= 0 || (en.getMethod() == ZipEntry.DEFLATED && size <= 2))continue;
        name obj=getName(name, set, str, ran);
        ZipEntryM put = new ZipEntryM(obj.name, raw ?en.getMethod(): 0);
-       put.setTime(obj.conts ?time: en.getTime()); 
+       put.xdostime = obj.conts ?time: ZipEntryM.dosTime(en.getTime());
        if (raw) {
         put.size = (int)en.getSize();
-        put.crc = (int)en.getCrc();
         put.csize = (int)en.getCompressedSize();
        }
        if (put != null) {
-        zipout.putEntry(put);
+        zipout.putEntry(put, true);
         zipout.write(buf, 0, size);
         int usize=boomlen - size;
         int i;
-        while ((i = input.read(buf)) > 0 && usize > 0) {
-         zipout.write(buf, 0, i);
-         usize -= i;
+        while ((i = ParallelDeflate.readLoop(io, buf)) > 0 && usize > 0) {
+          zipout.write(buf, 0, i);
+          usize -= i;
         }
        }
       } finally {
        input.close();
       }
-     } catch (Exception e) {}
+     } catch (Throwable e) {
+      //忽略的错误
+     }
     }
     zipout.close();
    } finally {
@@ -124,6 +122,6 @@ public class zipunpack implements Runnable {
   } catch (Exception e) {
    ex = e;
   }
-  ui.end(ex);
+  ui.accept(toList(ex));
  }
 }

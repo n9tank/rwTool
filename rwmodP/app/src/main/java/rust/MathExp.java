@@ -1,8 +1,14 @@
 package rust;
-public class cmpU {
- String m;
+public class MathExp {
+ CharSequence m;
  int in;
  char t;
+ public static double get(CharSequence str) {
+  MathExp math=new MathExp();
+  math.m = str;
+  math.t = str.charAt(0);
+  return math.cmp();
+ }
  public double next() {
   while (nextChar('+'));
   if (nextChar('-'))return -next();
@@ -15,7 +21,7 @@ public class cmpU {
    char c;
    if (((c = t) >= '0' && c <= '9') || c == '.') {
     while (((c = t) >= '0' && c <= '9') || c == '.')nextChar();
-    d = Double.parseDouble(m.substring(i, in));
+    d = Double.parseDouble(m.subSequence(i, in).toString());
    } else {
     while ((c = t) >= 'a' && c <= 'z')nextChar();
     d = next();
@@ -42,7 +48,7 @@ public class cmpU {
   return d;
  }
  public void nextChar() {
-  String str=m;
+  CharSequence str=m;
   int i=++in;
   char c;
   int len=str.length();

@@ -5,7 +5,9 @@ android {
 namespace 'rust.rwTool'
     compileSdkVersion 31
     packagingOptions{
-      exclude "org**"
+      jniLibs {
+            useLegacyPackaging true
+        }
     }
     signingConfigs {
         sign {
@@ -22,9 +24,9 @@ namespace 'rust.rwTool'
         applicationId "rust.rwTool"
         minSdkVersion 26
         //noinspection ExpiredTargetSdkVersion
-        targetSdkVersion 28
-        versionCode 1
-        versionName "0.8.0-lite"
+        targetSdkVersion 29
+        versionCode 241008
+        versionName "0.8.6"
     }
     buildTypes {
         release {
@@ -44,7 +46,7 @@ namespace 'rust.rwTool'
 }
 dependencies {
 //implementation 'com.ndahlquist:pngquant-android:0.2'
-implementation 'com.github.depsypher:pngtastic:1.7'
+//implementation 'com.github.depsypher:pngtastic:1.7'
 implementation fileTree("libs")
-//implementation fileTree(dir: "libs", include: ["*.jar"])
+implementation fileTree(dir: "libs", include: ["*.jar"])
 }

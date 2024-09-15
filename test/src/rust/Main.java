@@ -127,16 +127,4 @@ public class Main {
   }
   return 1;
  }
- public static double test2(String str) {
-  cmp cmp=new cmp(str);
-  cmp.a();
-  return cmp.b();
- }
- public static void main(String ...arg) throws Exception {
-  long g=System.nanoTime();
-  for (int i=0;i < 10000;i++)cmp("(3*(1+2+3-4))");
-  long n=System.nanoTime();
-  for (int i=0;i < 10000;i++)test2("(3*(1+2+3-4))");
-  System.out.println(System.nanoTime() - n + "=" + (n - g));
- }
 }

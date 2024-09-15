@@ -1,43 +1,31 @@
 package rust;
-import carsh.log;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.zip.ZipFile;
+import org.libDeflate.Canceler;
 import org.libDeflate.ErrorHandler;
-import org.libDeflate.ParallelDeflate;
+import org.libDeflate.UIPost;
+import android.util.Log;
 
 public class UiHandler extends ErrorHandler {
- ui ui;
- ZipFile file;
- TaskWait task;
- public UiHandler(ParallelDeflate para, ZipFile zip, TaskWait task) {
-  super(para);
-  file = zip;
-  this.task = task;
-  ui = task.back;
+ public static final ExecutorService ui_pool=Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+ volatile UIPost ui;
+ ZipFile zip;
+ public UiHandler(ExecutorService pool, Canceler can, UIPost on, ZipFile f) {
+  super(pool, can);
+  ui = on;
+  zip = f;
  }
- public UiHandler(ParallelDeflate para, ZipFile zip, ui ui) {
-  super(para);
-  file = zip;
-  this.ui = ui;
- }
- public boolean onError(Exception err) {
-  log.e(this, err);
-  if (super.onError(err)) {
-   if (task != null)task.down(ex);
-   close();
-  }
-  return true;
- }
- public void close() {
-  ZipFile zip=file;
-  file = null;
-  if (zip != null) {
+ public static void close(AutoCloseable co) {
+  if (co != null) {
    try {
-    zip.close();
+    co.close();
    } catch (Exception e) {}
-   ui.end(ex);
-  } 
+  }
  }
  public void onClose() {
-  close();
+  close(zip);
+  UIPost ui=this.ui;
+  if (ui != null)ui.accept(err);
  }
 }

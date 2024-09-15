@@ -1,15 +1,15 @@
 package rust.rwTool;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.ClipData;
 import android.content.ContentResolver;
-import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.provider.Settings;
@@ -18,40 +18,81 @@ import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.ListView;
 import android.widget.RadioGroup;
+import android.widget.ScrollView;
 import android.widget.TextView;
-import carsh.log;
+import java.io.CharArrayWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.util.ArrayList;
-import rust.lib;
-import rust.png;
-import rust.rwmap;
+import java.util.List;
+import rust.UiHandler;
+import rust.loaderManager;
+import rust.pngOpt;
+import rust.rwTool.Main;
+import rust.rwlib;
+import rust.rwmapOpt;
 import rust.rwmodProtect;
 import rust.savedump;
 import rust.zippack;
 import rust.zipunpack;
+import org.libDeflate.ParallelDeflate;
+import android.util.Log;
+import java.util.concurrent.ForkJoinPool;
+import java.util.HashMap;
+import rust.loader;
+import java.io.FileReader;
+import java.io.BufferedReader;
 public class Main extends Activity {
  boolean uselib;
  RadioGroup bu;
  CheckBox raw;
+ static Activity show;
  static ArrayAdapter arr;
- public static TextView bar;
  public void finish() {
   moveTaskToBack(true);
  }
- public static void error(Throwable e, String where, Context c) {
-  AlertDialog.Builder show=new AlertDialog.Builder(c);
+ public static void save(String str) throws IOException {
+  File file=Files.createTempFile(Main.show.getExternalCacheDir().toPath(), "", ".log").toFile();
+  FileWriter io=new FileWriter(file);
+  io.write(str);
+  io.close();
+ }
+ public static void error(List<Throwable> e, String where) {
+  Activity ct=Main.show;
+  AlertDialog.Builder show=new AlertDialog.Builder(ct);
   show.setTitle(where);
-  show.setMessage(e.toString());
+  CharArrayWriter cr=new CharArrayWriter();
+  PrintWriter out=new PrintWriter(cr);
+  for (Throwable err:e)
+   err.printStackTrace(out);
+  final String str=cr.toString();
+  ScrollView scr=new ScrollView(ct); 
+  TextView text=new TextView(ct);
+  scr.addView(text);
+  text.setText(str);
+  text.setTextIsSelectable(true);
+  show.setView(scr);
+  show.setCancelable(false);
+  show.setNegativeButton("save", new Dialog.OnClickListener(){
+    public void onClick(DialogInterface dialog, int which) {
+     StringUi ui=new StringUi("log");
+     arr.add(ui);
+     ParallelDeflate.pool.execute(new log(str, ui));
+    }
+   });
+  show.setPositiveButton("ok", null);
   show.show();
  }
  protected void onCreate(Bundle savedInstanceState) {
   super.onCreate(savedInstanceState);
-  Thread.setDefaultUncaughtExceptionHandler(new log(this));
+  show = this;
   SharedPreferences sh=getSharedPreferences("", MODE_PRIVATE);
   setContentView(R.layout.activity_main);
-  bar = findViewById(R.id.lib);
   bu = findViewById(R.id.rw);
   raw = findViewById(R.id.raw);
   ListView list=findViewById(R.id.list);
@@ -66,34 +107,32 @@ public class Main extends Activity {
   }
   Intent i=getIntent();
   if (i != null)st(i);
-  int sdk=Build.VERSION.SDK_INT;
   String s;
-  if (sdk >= 23 && checkSelfPermission(s = "android.permission.WRITE_EXTERNAL_STORAGE") != PackageManager.PERMISSION_GRANTED) {
+  if (checkSelfPermission(s = "android.permission.WRITE_EXTERNAL_STORAGE") != PackageManager.PERMISSION_GRANTED) {
    String per[]=new String[]{s};
    requestPermissions(per, 0);
   } else init();
  }  
  public void lib() {
-  bar.setVisibility(0);
   File li=new File(getExternalFilesDir(null), "lib.zip");
-  cui ui=new cui("lib");
-  Runnable run;  
-  if (!li.exists())run = new lib(null, getResources().openRawResource(R.raw.lib), li, ui);
-  else run = new lib(li, null, null, ui);
-  ui.pool.execute(run);
+  StringUi ui=new StringUi("lib");
+  loaderManager run;  
+  if (!li.exists())run = new rwlib(null, getResources().openRawResource(R.raw.lib), li, ui);
+  else run = new rwlib(li, null, null, ui);
+  run.init();
+  arr.add(ui);
  }
  public void init() {
   if (uselib)lib();
   try {
    File su=getExternalFilesDir(null);
-   InputStream io;
+   HashMap io;
    File ini = new File(su, ".ini");
-   if (ini.exists())io = new FileInputStream(ini);
-   else io = getResources().openRawResource(R.raw.def);
+   if (ini.exists())io = loader.load(new BufferedReader(new FileReader(ini), Math.min(8192, (int)ini.length())));
+   else io = loader.load(getResources().openRawResource(R.raw.def));
    rwmodProtect.init(io);
   } catch (Throwable e) {
-   log.e(this, e);
-   error(e, "init", this);
+   error(zipunpack.toList(e), "init");
   }
  }
  public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
@@ -160,28 +199,31 @@ public class Main extends Activity {
   }
   File f=new File(path);
   if (f.exists()) {
-   cui cui=new cui(path);
-   cui.ui = true;
+   StringUi StringUi=new StringUi(path);
    Runnable run=null;
+   loaderManager call=null;
    if (path.endsWith(".rwmod")) {
     boolean rab=raw.isChecked();
 	int id=bu.getCheckedRadioButtonId();
 	if (id == R.id.pr) {
-	 run = new rwmodProtect(f, out(f, 6, "_r.rwmod"), cui, rab);
-	} else if (id == R.id.pack)run = new zippack(f, out(f, 6, "_p.rwmod"), rab, cui);
-	else run = new zipunpack(f, out(f, 6, "_u.rwmod"), rab, cui);
+	 call = new rwmodProtect(f, out(f, 6, "_r.rwmod"), StringUi, rab);
+	} else if (id == R.id.pack)run = new zippack(f, out(f, 6, "_p.rwmod"), rab, StringUi);
+	else run = new zipunpack(f, out(f, 6, "_u.rwmod"), rab, StringUi);
    } else if (path.endsWith(".apk")) {
-	run = new lib(f, null, new File(getExternalFilesDir(null), "lib.zip"), cui);
+	call = new rwlib(f, null, new File(getExternalFilesDir(null), "lib.zip"), StringUi);
    } else if (path.endsWith(".rwsave") || path.endsWith(".replay")) {
-	run = new savedump(f,  out(f, 6, "tmx"), cui);
+	run = new savedump(f,  out(f, 6, "tmx"), StringUi);
    } else if (path.endsWith(".tmx")) {
-	run = new rwmap(f, out(f, 4, "_r.tmx"), cui);
+	run = new rwmapOpt(f, out(f, 4, "_r.tmx"), StringUi);
    } else if (path.endsWith(".png")) {
-    run = new png(f, out(f, 4, "_r.png"), cui);
+    run = new pngOpt(f, out(f, 4, "_r.png"), StringUi);
    }
    if (run != null) {
-    rust.ui.pool.execute(run);
-    arr.add(cui);
+    arr.add(StringUi);
+    UiHandler.ui_pool.execute((Runnable)run);
+   } else if (call != null) {
+    arr.add(StringUi);
+    call.init();
    }
   }
  }
@@ -218,10 +260,7 @@ public class Main extends Activity {
   CheckBox ch=(CheckBox)v;
   boolean is=ch.isChecked();
   uselib = is;
-  if (is && lib.libMap == null)lib();
- }
- public void log(View v) {
-  log.debug = ((CheckBox)v).isChecked();
+  if (is && rwlib.libMap == null)lib();
  }
  public void onSaveInstanceState(Bundle outState) {
   super.onSaveInstanceState(outState);

@@ -1,8 +1,8 @@
 package rust;
 
-import carsh.log;
 import java.io.File;
 import java.io.InputStream;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -18,22 +18,26 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import org.libDeflate.ParallelDeflate;
-import org.libDeflate.ZipEntryM;
-import org.libDeflate.ZipEntryOutput;
-import org.libDeflate.ZipUtil;
-import rust.copyKey;
+import rust.loaders;
 import rust.iniobj;
-import rust.loder;
-import rust.rwmap;
+import rust.loader;
+import rust.rwmapOpt;
 import rust.savedump;
 import rust.zippack;
 import rust.zipunpack;
-public class rwmodProtect extends TaskWait implements Consumer {
+import org.libDeflate.ParallelDeflate;
+import org.libDeflate.ZipEntryM;
+import org.libDeflate.ZipEntryOutput;
+import org.libDeflate.ZipInputGet;
+import org.libDeflate.ZipUtil;
+import java.nio.charset.Charset;
+import org.libDeflate.UIPost;
+import java.io.IOException;
+import java.io.BufferedInputStream;
+public class rwmodProtect extends loaderManager implements Consumer {
  HashMap lowmap;
  ConcurrentHashMap resmap;
  ZipEntryOutput out;
- ParallelDeflate cre;
  ConcurrentHashMap coeMap;
  int arr[];
  AtomicInteger adds[];
@@ -46,30 +50,48 @@ public class rwmodProtect extends TaskWait implements Consumer {
  static HashSet skip;
  static char[] cr;
  static HashMap<String,Integer> Res;
- public rwmodProtect(File in, File ou, ui ui, boolean rw) {
+ public rwmodProtect(File in, File ou, UIPost ui, boolean rw) {
   super(in, ou, ui);
   raw = rw;  
  }
- public loder getLoder(String str) throws Throwable {
+ public loader getLoder(String str) throws Throwable {
   ZipEntry za=toPath(str);
   if (za == null)return null;
   str = za.getName();
-  return addLoder(za, str, getType(str) == 4);
+  return addLoder(za, str, str, null, getType(str) == 4);
  }
- public static void init(InputStream io)throws Exception {
-  loder ini=new loder();
-  ini.read = io;
-  ini.call(); 
-  HashMap<String,cpys> src=ini.ini;
+ public static void init(HashMap<String,section> src)throws Exception {
   HashMap re=src.get("tmx").m;
   for (Map.Entry<String,Object> en:(Set<Map.Entry>)re.entrySet()) {
    HashSet add=new HashSet();
    Collections.addAll(add, ((String)en.getValue()).split(","));  
    en.setValue(add);
   }
-  rwmap.remove = re;
-  HashMap<String,String> set=src.get("dump").m;
-  savedump.xmlencode = set.get("encode"); 
+  rwmapOpt.remove = re;
+  HashMap<String,String> set;
+  set = src.get("unit").m;
+  String oldunits[]=set.get("old").split(",");
+  int i=oldunits.length;
+  HashMap old=new HashMap();
+  while (--i > 0) {
+   String v=oldunits[i];
+   String k=oldunits[--i];
+   old.put(k, v);
+  }
+  rwmapOpt.oldunits = old;
+  oldunits = set.get("unit").split(",");
+  i = oldunits.length;
+  old = new HashMap();
+  while (--i > 0) {
+   String id=oldunits[i];
+   String v=oldunits[--i];
+   String team=oldunits[--i];
+   rwmapOpt.key key=new rwmapOpt.key(v, Integer.parseInt(team));
+   key.id = Integer.parseInt(id);
+   old.put(key, key);
+  }
+  rwmapOpt.units = old;
+  set = src.get("dump").m;
   zipunpack.boomlen = Integer.parseInt(set.get("boomlen"));    
   set = src.get("ini").m;
   String str[]=set.get("head").split(",");
@@ -100,7 +122,10 @@ public class rwmodProtect extends TaskWait implements Consumer {
   Integer rp=Integer.valueOf(type);
   for (String str:list)
    res.put(str, rp);
- } 
+ }
+ public static String path(String str) {
+  return Paths.get(str).normalize().toString();
+ }
  public ZipEntry toPath(String str) {
   ZipEntry za=Zip.getEntry(str);
   if (za == null) {
@@ -172,10 +197,10 @@ public class rwmodProtect extends TaskWait implements Consumer {
   if (ini == 0)buff.append('/');  
   return buff.toString();
  }
- public boolean lod(loder ini) {
+ public boolean lod(loader ini) {
   //便于改动到并行加载，没多大优化，主要耗时为io流。
   ConcurrentHashMap coe=coeMap;
-  copyKey key=ini.copy;
+  loaders key=ini.copy;
   iniobj old=new iniobj();
   Object obj=coe.putIfAbsent(key, ini);
   if (obj == null) {
@@ -188,10 +213,10 @@ public class rwmodProtect extends TaskWait implements Consumer {
   super.lod(ini);
   return true;
  }
- public void appstr(String str, int last, loder put, StringBuilder buff) {
+ public void appstr(String str, int last, loader put, StringBuilder buff) {
   String add=put.str;
   int st=0;  
-  if (put.task != this)buff.append("CORE:");
+  if (put.task == null)buff.append("CORE:");
   else if (maxSplit > 0) {
    if (add.regionMatches(0, str, 0, last))
     st = add.lastIndexOf('/', add.length() - 3) + 1;
@@ -201,37 +226,38 @@ public class rwmodProtect extends TaskWait implements Consumer {
   buff.append(',');
  } 
  public static iniobj em=new iniobj();
- void write(loder ini) throws Throwable {
-  loder alls=ini.all;
+ public static boolean with(loader copy[], loader all) {
+  if (copy != null) {
+   for (loader lod:copy)
+    if (lod.all == all || with(lod.copy.copy, all))
+     return true;
+  }
+  return false;
+ }
+ void write(loader ini) throws Throwable {
+  loader alls=ini.all;
   StringBuilder buff=new StringBuilder();
   StringBuilder bf=new StringBuilder();
   String file=ini.src;
   boolean ws=maxSplit > 0;  
-  file = loder.getSuperPath(file);
+  file = loader.getSuperPath(file);
   HashMap map=ini.ini;
-  copyKey copy=ini.copy;
-  loder[] orr= copy.copy;
+  loaders copy=ini.copy;
+  loader[] orr= copy.copy;
   if (orr.length > 0 || alls != null) {
-   cpys cp=(cpys)map.get("core");
+   section cp=(section)map.get("core");
    HashMap core;
    if (cp == null) {
-    cp = new cpys();
+    cp = new section();
     cp.m = core = new HashMap();
     map.put("core", cp);
    } else core = cp.m;
    String str=ini.str;
    int last=str.lastIndexOf('/', str.length() - 3); 
-   if (alls != null) {
-    boolean notmp=false;
-    for (loder lod:orr) {
-     if (alls == lod.all) {
-      notmp = true;        
-      break;
-     }
-    }
-    if (!notmp)appstr(str, last, alls, buff);
-   }
-   for (loder obj:orr)appstr(str, last, obj, buff);  
+   if (alls != null && !with(orr, alls))
+    appstr(str, last, alls, buff);
+   for (loader obj:orr)
+    appstr(str, last, obj, buff);  
    buff.setLength(buff.length() - 1);
    core.put("copyFrom", buff.toString());
   }
@@ -241,11 +267,11 @@ public class rwmodProtect extends TaskWait implements Consumer {
   iniobj old=ini.old;
   if (old == null)old = em;
   HashMap oldsrc=old.put;
-  for (Map.Entry<String,cpys>en:(Set<Map.Entry<String,cpys>>)as.entrySet()) {
+  for (Map.Entry<String,section>en:(Set<Map.Entry<String,section>>)as.entrySet()) {
    String ac=en.getKey();
-   cpys cpys=en.getValue();
+   section cpys=en.getValue();
    HashMap asmap = cpys.m;
-   cpys asold=(cpys)oldsrc.get(ac);
+   section asold=(section)oldsrc.get(ac);
    HashMap oldmap;
    HashMap lastcoe;
    if (asold != null) {
@@ -255,7 +281,7 @@ public class rwmodProtect extends TaskWait implements Consumer {
     oldmap = null;
     lastcoe = null;
    }
-   cpys licp=(cpys)map.get(ac);
+   section licp=(section)map.get(ac);
    HashMap list=licp == null ?null: licp.m;
    for (Map.Entry<String,String> en2:(Set<Map.Entry<String,String>>)asmap.entrySet()) {
     String key=en2.getKey();
@@ -266,16 +292,16 @@ public class rwmodProtect extends TaskWait implements Consumer {
      Object o=res.get(key);
      if (o != null) {
       int type = (Integer)o;
-      String next=put.get(value, ac, cpys);
+      String next=put.get(value, ac, cpys, buff);
       if (next != null) {
        String[] nowlist=AllPath(next, file, type, buff);
-       loder coe=null;
        boolean same=value.equals(next);
-       eq &= same && (lastcoe != null && (coe = (loder)lastcoe.get(key)) != null && Arrays.equals(nowlist, AllPath(next, loder.getSuperPath(coe.src), type, buff)));
+       String coe;
+       eq &= same && (lastcoe != null && (coe = (String)lastcoe.get(key)) != null && Arrays.equals(nowlist, AllPath(next , coe, type, buff)));
        //补修宏绕过
        if (!same || !eq) {
         if (list == null) {
-         cpys cp=new cpys();
+         section cp=new section();
          cp.m = list = new HashMap();
          map.put(ac, cp);
         }
@@ -292,7 +318,7 @@ public class rwmodProtect extends TaskWait implements Consumer {
            if (i <= 0)i = add.length();
            if (ws)buff.append("ROOT:");
            str = add.substring(st, i);
-           ZipEntry ze = toPath(str);
+           ZipEntry ze = toPath(path(str));
            if (ze != null) {
             String name=ze.getName();
 			Object obj;
@@ -302,7 +328,7 @@ public class rwmodProtect extends TaskWait implements Consumer {
 			if (obj == null) {
 			 resmap.put(name, str = safeName(getType(name), bf));
 			 ZipEntryM outen=ZipUtil.newEntry(str, type <= 0 ?0: 12);
-             zippack.writeOrCopy(cre, Zip.getInputStream(ze), ze, outen, raw);
+             zippack.writeOrCopy(cre, Zip, ze, outen, raw);
             } else str = (String)obj;
 		   }
 		   buff.append(str);
@@ -346,7 +372,7 @@ public class rwmodProtect extends TaskWait implements Consumer {
   String list[];
   buff.setLength(0);
   boolean ru=false;
-  list = str.split(",", type < 0 ?1: Integer.MAX_VALUE);
+  list = type < 0 ?new String[]{str}: str.split(",");
   int l=list.length,m=0;
   do {
    buff.setLength(0);
@@ -398,45 +424,39 @@ public class rwmodProtect extends TaskWait implements Consumer {
   }
   return 1;
  }
- int is;
+ volatile int is;
  public void accept(Object o) {
   switch (is) {
    case 0:
-	loder lod=(loder)o;
+	loader lod=(loader)o;
 	lod.put.as();
 	break;
    case 1:
 	try {
-	 write((loder)o);
+	 write((loader)o);
 	} catch (Throwable e) {
 	 is = 2;
-	 log.e(this, e);
+     uih.onError(e);
 	}
 	break;
   }
  }
- public void end(Throwable e) {
-  if (e == null) {
-   List vl=Arrays.asList(Zipmap.values().toArray());
-   vl.parallelStream().forEach(this);
-   is = 1;
-   Collections.shuffle(vl); 
-   StringBuilder bf=new StringBuilder();
-   for (Object obj:vl) {
-    loder lod=(loder)obj;
-    lod.str = safeName(lod.isini ?4: 1, bf);
-   }   
-   vl.parallelStream().forEach(this);
-   try {
-    cre.close();
-   } catch (Exception ex) {
-   }
-  } else {
-   cre.cancel();
-   back.end(e);
-  }
+ public void end() {
+  List vl=Arrays.asList(Zipmap.values().toArray());
+  vl.parallelStream().forEach(this);
+  is = 1;
+  Collections.shuffle(vl);
+  StringBuilder bf=new StringBuilder();
+  for (Object obj:vl) {
+   loader lod=(loader)obj;
+   lod.str = safeName(lod.isini ?4: 1, bf);
+  }   
+  vl.parallelStream().forEach(this);
+  try {
+   cre.close();
+  } catch (IOException e) {}
  }
- public void run() {
+ public Object call() {
   resmap = new ConcurrentHashMap();
   AtomicInteger[] add=new AtomicInteger[3];
   adds = add;
@@ -450,9 +470,9 @@ public class rwmodProtect extends TaskWait implements Consumer {
   try {
    ZipFile zip=new ZipFile(In);
    Zip = zip;
-   out = new ZipEntryOut(Ou);
+   out = zippack.enZip(Ou);
    ParallelDeflate cr = new ParallelDeflate(out, true);
-   cr.on = new UiHandler(cr, zip, this);
+   cr.on = new UiHandler(cr.pool, cr, back, zip);
    cre = cr;
    String name=null;
    HashSet rset=new HashSet();
@@ -460,18 +480,18 @@ public class rwmodProtect extends TaskWait implements Consumer {
    do{
     ZipEntry zipEntry=zipEntrys.nextElement();
     String fileName=zipEntry.getName();
-    String root=loder.getSuperPath(fileName);
+    String root=loader.getSuperPath(fileName);
     if (!rset.add(root) && (name == null || root.length() < name.length()))name = root;
     lows.putIfAbsent(fileName.toLowerCase(), zipEntry);
    }while(zipEntrys.hasMoreElements());
    rootPath = name;
    ZipEntry inf=toPath(name.concat("mod-info.txt"));
    if (inf != null) {
-    loder ini=new loder();
-    ini.read = zip.getInputStream(inf);
-    ini.call();
-    HashMap info=ini.ini;
-    cpys cp=(cpys)info.get("music");
+    loader ini=new loader();
+    InputStream in=zip.getInputStream(inf);
+    if (inf.getMethod() > 0)in = new BufferedInputStream(in, Math.min(8192, in.available()));
+    HashMap info=loader.load(in);
+    section cp=(section)info.get("music");
     if (cp != null) {
      HashMap map=cp.m;
      String str =(String)map.get("sourceFolder");
@@ -485,6 +505,7 @@ public class rwmodProtect extends TaskWait implements Consumer {
       map.put("sourceFolder", oggput = mbuff.toString());
      }
     }
+    ini.ini = info;
     ini.with(cre, "mod-info.txt/");
    }
    ArrayList<ZipEntry> ogg=new ArrayList();
@@ -494,19 +515,20 @@ public class rwmodProtect extends TaskWait implements Consumer {
     name = zipEntry.getName();
 	int type=getType(name);
 	if (type == 4) {
-	 addLoder(zipEntry, name, true);
+	 addLoder(zipEntry, name, name, null, true);
 	} else if (type == 0) {
-     zippack.writeOrCopy(cre, zip.getInputStream(zipEntry), zipEntry, ZipUtil.newEntry(safeName(0, mbuff), 12), raw);
+     zippack.writeOrCopy(cre, zip, zipEntry, ZipUtil.newEntry(loader.getName(name).concat("/"), 12), raw);
 	} else if (type >= 5) {
-     ogg.add(zipEntry);     
+     ogg.add(zipEntry);
     }
    }while(zipEntrys.hasMoreElements());
    Collections.shuffle(ogg);
    for (ZipEntry en:ogg)
-    zippack.writeOrCopy(cre, zip.getInputStream(en), en, ZipUtil.newEntry(safeName(getType(en.getName()), mbuff), 12), raw);
-   down(null);
+    zippack.writeOrCopy(cre, zip, en, ZipUtil.newEntry(safeName(getType(en.getName()), mbuff), 12), raw);
   } catch (Throwable e) {
-   down(e);
+   uih.onError(e);
   }
+  uih.pop();
+  return null;
  }
 }

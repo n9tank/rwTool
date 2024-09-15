@@ -15,10 +15,10 @@
 尝试从rwsave/replay文件提取tmx，并写出。
 
 - [地图精简](https://github.com/Timeree/RwMapCompressor)
-基于RwMapCompressor爆改的地图压缩器，提供强力的压缩效果，仍有一些优化空间，仅用于Android。（其他平台需要移值）
+基于RwMapCompressor修改的地图压缩器，提供强力的压缩效果，仍有一些优化空间，仅用于Android。（其他平台需要移值）
 
 - png压缩
-一般般的无损压缩，该功能不会有很好的效果。
+基于pngquant，压缩效果不会太差。
 
 # 开关
 
@@ -36,6 +36,6 @@
 
 - split 文件路径“/”分割计算，为空禁用，格式：NN。(0-9)，最大分割数-1，最大分割长度-1。
 
-- encode tmx提取的编码集
+- encode tmx提取的编码集（已废弃）
 
-- boomlen 超过该长度，停止写出。
+- boomlen 在解压时超过该长度跳过条目。
