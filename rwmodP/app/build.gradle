@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+  }
+android {
+namespace 'rust.rwTool'
+    compileSdkVersion 31
+    packagingOptions{
+      exclude "org**"
+    }
+    signingConfigs {
+        sign {
+            keyAlias '0'
+            keyPassword '0'
+            storeFile file('/sdcard/AppProjects/.jks')
+            storePassword '0'
+            }
+        }
+    defaultConfig {
+		ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+        }
+        applicationId "rust.rwTool"
+        minSdkVersion 26
+        //noinspection ExpiredTargetSdkVersion
+        targetSdkVersion 28
+        versionCode 1
+        versionName "0.8.0-lite"
+    }
+    buildTypes {
+        release {
+        signingConfig signingConfigs.sign
+        shrinkResources true
+        minifyEnabled true
+        proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+		}
+        debug {
+        signingConfig signingConfigs.sign
+        }
+        compileOptions {
+			sourceCompatibility=JavaVersion.VERSION_1_8
+			targetCompatibility=JavaVersion.VERSION_1_8
+			}
+    }
+}
+dependencies {
+//implementation 'com.ndahlquist:pngquant-android:0.2'
+implementation 'com.github.depsypher:pngtastic:1.7'
+implementation fileTree("libs")
+//implementation fileTree(dir: "libs", include: ["*.jar"])
+}

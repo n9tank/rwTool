@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     android:layout_height="match_parent"
+     android:layout_width="match_parent"
+     android:orientation="vertical">
+
+    <TextView
+         android:layout_height="wrap_content"
+         android:layout_width="wrap_content"
+         android:visibility="gone"
+         android:textAppearance="?android:attr/textAppearanceSmall"
+         android:id="@+id/lib"
+         android:text="wait..." />
+
+    <LinearLayout
+         android:layout_height="wrap_content"
+         android:layout_width="wrap_content"
+         android:orientation="horizontal">
+
+        <CheckBox
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:onClick="log"
+             android:text="log"
+             android:id="@+id/log" />
+
+        <CheckBox
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:onClick="ch"
+             android:id="@+id/ch"
+             android:text="lib" />
+
+        <CheckBox
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:text="raw"
+             android:checked="true"
+             android:id="@+id/raw" />
+
+    </LinearLayout>
+
+    <LinearLayout
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:orientation="horizontal">
+
+        <Button
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:onClick="sw"
+             android:textAllCaps="false"
+             style="?android:attr/buttonStyleSmall"
+             android:text="start" />
+
+        <RadioGroup
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:orientation="horizontal"
+             android:id="@+id/rw">
+
+            <RadioButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:checked="true"
+                 android:text="protect"
+                 android:id="@+id/pr" />
+
+            <RadioButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:text="pack"
+                 android:id="@+id/pack" />
+
+            <RadioButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:text="unpack" />
+
+        </RadioGroup>
+
+    </LinearLayout>
+
+    <ListView
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:id="@+id/list">
+
+    </ListView>
+
+</LinearLayout>
