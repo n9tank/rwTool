@@ -12,7 +12,6 @@ import org.libDeflate.ZipInputGet;
 import rust.iniobj;
 import rust.loader;
 import rust.loaders;
-import android.util.Log;
 
 public abstract class loaderManager implements Callable,Canceler {
  String rootPath;

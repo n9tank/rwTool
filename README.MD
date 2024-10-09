@@ -15,7 +15,7 @@
 尝试从rwsave/replay文件提取tmx，并写出。
 
 - [地图精简](https://github.com/Timeree/RwMapCompressor)
-基于RwMapCompressor修改的地图压缩器，提供强力的压缩效果，仍有一些优化空间，仅用于Android。（其他平台需要移值）
+基于RwMapCompressor修改的地图压缩器，提供强力的压缩效果，仍有一些优化空间。
 
 - png压缩
 基于pngquant，压缩效果不会太差。

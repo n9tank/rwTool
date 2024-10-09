@@ -1,12 +1,4 @@
 package rust;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffXfermode;
-import android.graphics.Rect;
-import com.nicdahlquist.pngquant.LibPngQuant;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -35,6 +27,7 @@ import org.libDeflate.UIPost;
 import java.nio.file.Files;
 import java.io.IOException;
 import java.nio.file.Path;
+import org.pngquant;
 
 public class rwmapOpt implements Runnable {
  public static class key implements Comparable {
@@ -144,9 +137,12 @@ public class rwmapOpt implements Runnable {
   InputStream in =new ByteArrayInputStream(Base64.getDecoder().decode(dataValue));
   if (data.getAttributes().getNamedItem("compression").getNodeValue().equals("gzip"))in = new GZIPInputStream(in);
   else in = new InflaterInputStream(in);
-  int len;  
-  while ((len = in.read(buf)) > 0)buffer.put(buf, 0, len);
-  in.close();
+  try {
+   int len;  
+   while ((len = in.read(buf)) > 0)buffer.put(buf, 0, len);
+  } finally {
+   in.close();
+  }
   buffer.flip();
   return buffer;
  }
@@ -157,29 +153,6 @@ public class rwmapOpt implements Runnable {
   def.close();
   ebuf.flip();
   return ebuf;
- }
- public static File openTmp() throws IOException {
-  Path tmp=Files.createTempFile("", "");
-  Files.deleteIfExists(tmp);
-  return tmp.toFile();
- }
- public static byte[] optpng(Bitmap bm2) throws Exception {
-  File tmp=openTmp();
-  //这是pngQuant-Android的屎优化不动
-  FileOutputStream out=new FileOutputStream(tmp);
-  bm2.compress(Bitmap.CompressFormat.PNG, 100, out);
-  bm2.recycle();
-  out.close();
-  File optmp=openTmp();
-  //optmp.createNewFile();
-  LibPngQuant.pngQuantFile(tmp, optmp, 65, 80, 1, 0.5f);
-  tmp.delete();
-  FileInputStream in = new FileInputStream(optmp);
-  byte[] brr=new byte[in.available()];
-  in.read(brr);
-  in.close();
-  optmp.delete();
-  return brr;
  }
  //懒得搞并行放这里了
  //https://github.com/Timeree/RwMapCompressor
@@ -313,7 +286,6 @@ public class rwmapOpt implements Runnable {
          if ("embedded_png".equals(name)) {
           Node img= getFirst(i2 + 1, item);  
           if (img.getNodeName().equals("image"))item.removeChild(img);  
-          int tilew=Ipare(attr, "columns");          
           int tilec=Ipare(attr, "tilecount"); 
           String tlname=null;
           int size=0;
@@ -330,31 +302,11 @@ public class rwmapOpt implements Runnable {
           }
           if (tlname.equalsIgnoreCase("units")) {
            item.removeChild(property);
-           continue;              
+           continue;
           }                  
           byte imgarr[] = Base64.getDecoder().decode(property.getTextContent().replaceAll("\\s", ""));
-          Bitmap.Config cf=tlname.equalsIgnoreCase("items") ?Bitmap.Config.ARGB_8888: Bitmap.Config.RGB_565;
-          BitmapFactory.Options options = new BitmapFactory.Options();
-          options.inPreferredConfig = cf;
-          Bitmap bmp=BitmapFactory.decodeByteArray(imgarr, 0, imgarr.length, options);
-          Bitmap bm2= Bitmap.createBitmap(tileWidth, tileHeight * size, cf);                               
-          Canvas cv= new Canvas(bm2);
-          Paint pt= new Paint();
-          pt.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC));      
-          int v=0,j=0;                   
-          for (c = tilec;--c >= 0;) {
-           Integer key=c + first;               
-           if (tiles.containsKey(key)) {      
-            int left=c % tilew * tileWidth;   
-            int top=c / tilew * tileHeight;
-            int n=v + tileHeight;
-            tiles.put(key, j++ + first);                                                         
-            cv.drawBitmap(bmp, new Rect(left, top, left + tileWidth, top + tileHeight), new Rect(0, v, tileWidth, n), pt);
-            v = n;  
-           }                           
-          }
-          bmp.recycle();
-          property.setTextContent(Base64.getEncoder().encodeToString(optpng(bm2)));
+          byte opt[]=ImageUtil.tmxPngOpt(imgarr, tlname.equalsIgnoreCase("items"), tileWidth, tileHeight, size, first, tilec, Ipare(attr, "columns"), tiles);
+          property.setTextContent(Base64.getEncoder().encodeToString(opt));
          }
         }                     
        }
@@ -510,7 +462,7 @@ public class rwmapOpt implements Runnable {
    ex = e;
   }
   if (ex != null)ou.delete();
-  ui.accept(zipunpack.toList(ex));
+  ui.accept(UiHandler.toList(ex));
  }
  public static void outxml(Node map, BufferedWriter out) throws Exception {
   NodeList list=map.getChildNodes();

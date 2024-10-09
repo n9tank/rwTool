@@ -1,7 +1,7 @@
 package rust.rwTool;
 import org.libDeflate.UIPost;
 import java.io.IOException;
-import rust.zipunpack;
+import rust.UiHandler;
 
 public class log implements Runnable {
  public String str;
@@ -17,6 +17,6 @@ public class log implements Runnable {
   } catch (IOException e) {
    ex = e;
   }
-  ui.accept(zipunpack.toList(ex));
+  ui.accept(UiHandler.toList(ex));
  }
 }

@@ -16,7 +16,6 @@ import org.libDeflate.ZipEntryInput;
 import org.libDeflate.ZipEntryM;
 import org.libDeflate.ZipEntryOutput;
 import java.util.Collections;
-import android.util.Log;
 import org.libDeflate.ParallelDeflate;
 
 public class zipunpack implements Runnable {
@@ -62,9 +61,6 @@ public class zipunpack implements Runnable {
    }
   }
   return new name(name, conts);
- }
- public static List<Throwable> toList(Throwable e) {
-  return e == null ?null: Collections.singletonList(e);
  }
  public void run() {
   Throwable ex=null;
@@ -122,6 +118,6 @@ public class zipunpack implements Runnable {
   } catch (Exception e) {
    ex = e;
   }
-  ui.accept(toList(ex));
+  ui.accept(UiHandler.toList(ex));
  }
 }
