@@ -1,7 +1,7 @@
 
 import java.util.ArrayList;
 
-public class Main {
+public class MathExp {
  public static double cmp(String str) {
   ArrayList dr=new ArrayList();
   int i=0,ls=0,z=-1;

@@ -132,7 +132,7 @@ public class Main extends Activity {
    else io = loader.load(getResources().openRawResource(R.raw.def));
    rwmodProtect.init(io);
   } catch (Throwable e) {
-   error(zipunpack.toList(e), "init");
+   error(UiHandler.toList(e), "init");
   }
  }
  public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
@@ -166,10 +166,6 @@ public class Main extends Activity {
   } else o = intent.getData();
   if (o != null)add(o);
  }
- public static File out(File path, int i, String end) {
-  String name=path.getName();
-  return new File(path.getParent(), name.substring(0, name.length() - i).concat(end));
- }
  public void add(Uri uri) {
   String type=uri.getScheme();
   String path=uri.getPath();
@@ -200,31 +196,8 @@ public class Main extends Activity {
   File f=new File(path);
   if (f.exists()) {
    StringUi StringUi=new StringUi(path);
-   Runnable run=null;
-   loaderManager call=null;
-   if (path.endsWith(".rwmod")) {
-    boolean rab=raw.isChecked();
-	int id=bu.getCheckedRadioButtonId();
-	if (id == R.id.pr) {
-	 call = new rwmodProtect(f, out(f, 6, "_r.rwmod"), StringUi, rab);
-	} else if (id == R.id.pack)run = new zippack(f, out(f, 6, "_p.rwmod"), rab, StringUi);
-	else run = new zipunpack(f, out(f, 6, "_u.rwmod"), rab, StringUi);
-   } else if (path.endsWith(".apk")) {
-	call = new rwlib(f, null, new File(getExternalFilesDir(null), "lib.zip"), StringUi);
-   } else if (path.endsWith(".rwsave") || path.endsWith(".replay")) {
-	run = new savedump(f,  out(f, 6, "tmx"), StringUi);
-   } else if (path.endsWith(".tmx")) {
-	run = new rwmapOpt(f, out(f, 4, "_r.tmx"), StringUi);
-   } else if (path.endsWith(".png")) {
-    run = new pngOpt(f, out(f, 4, "_r.png"), StringUi);
-   }
-   if (run != null) {
+   if (UiHandler.DefaultRunTask(f,this.bu.getCheckedRadioButtonId(), R.id.pr, R.id.pack, raw.isChecked(), getExternalFilesDir(null),StringUi))
     arr.add(StringUi);
-    UiHandler.ui_pool.execute((Runnable)run);
-   } else if (call != null) {
-    arr.add(StringUi);
-    call.init();
-   }
   }
  }
  public void onActivityResult(int requestCode, int resultCode, Intent data) {

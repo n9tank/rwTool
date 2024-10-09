@@ -75,9 +75,8 @@ public class savedump implements Runnable {
    try {
     byte[] brr=new byte[8207];
     buff.mark(0);
-    buff.read(brr, 0, 8192);
+    int len= buff.read(brr, 0, 8192) - 1;
     int i=0;
-    int len=8191;
     while (i < len)
      if (brr[i++] == (byte)0x1f && brr[i] == (byte)0x8b)break;
     if (i > 0) {
@@ -150,6 +149,6 @@ public class savedump implements Runnable {
    ex = e;
   }
   if (ex != null)ou.delete();
-  ui.accept(zipunpack.toList(ex));
+  ui.accept(UiHandler.toList(ex));
  }
 }

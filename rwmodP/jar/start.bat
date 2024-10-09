@@ -1,0 +1,1 @@
+java -jar -Djava.awt.headless=false -Djava.library.path=%~dp0 *.jar

@@ -14,7 +14,6 @@ import org.libDeflate.ParallelDeflate;
 import org.libDeflate.ZipEntryOutput;
 import org.libDeflate.UIPost;
 import java.util.Collections;
-import android.util.Log;
 import java.util.HashMap;
 
 public class rwlib extends loaderManager implements UIPost {

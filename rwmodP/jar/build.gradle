@@ -1,0 +1,31 @@
+plugins {
+    id 'java'
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs += "../app/src/main/java"
+        }
+    }
+}
+
+group = "rust.rwTool"
+version = "0.8.6"
+description = "rwTool"
+
+java {
+    archivesBaseName = "rwTool"
+    sourceCompatibility = JavaVersion.VERSION_1_8
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'awt.Main'
+    }
+}
+
+dependencies {
+implementation fileTree(dir: "libs", include: ["*.jar"])
+implementation fileTree(dir: "libawt", include: ["*.jar"])
+}

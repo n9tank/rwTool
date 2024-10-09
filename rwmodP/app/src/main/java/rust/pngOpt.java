@@ -1,9 +1,9 @@
 package rust;
 import java.io.File;
-import com.nicdahlquist.pngquant.LibPngQuant;
 import org.libDeflate.UIPost;
 import java.util.Collections;
 import java.util.List;
+import org.pngquant;
 
 public class pngOpt implements Runnable {
  File in;
@@ -15,7 +15,7 @@ public class pngOpt implements Runnable {
   ui = u;
  }
  public void run() {
-  LibPngQuant.pngQuantFile(in, ou, 65, 80, 1, 0.5f);
-  ui.accept((List)Collections.emptyList());
+  pngquant.file(in.getAbsolutePath(), ou.getAbsolutePath(), pngquant.attr(65, 80, 1), 0.5f);
+  ui.accept(null);
  }
 }
