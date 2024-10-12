@@ -1,5 +1,4 @@
 package rust;
-import com.nicdahlquist.pngquant.LibPngQuant;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -28,6 +27,7 @@ import org.libDeflate.UIPost;
 import java.nio.file.Files;
 import java.io.IOException;
 import java.nio.file.Path;
+import org.pngquant;
 
 public class rwmapOpt implements Runnable {
  public static class key implements Comparable {
@@ -153,27 +153,6 @@ public class rwmapOpt implements Runnable {
   def.close();
   ebuf.flip();
   return ebuf;
- }
- public static File openTmp() throws IOException {
-  Path tmp=Files.createTempFile("", "");
-  Files.deleteIfExists(tmp);
-  return tmp.toFile();
- }
- public static byte[] optpng(File tmp) throws Exception {
-  File optmp=openTmp();
-  //optmp.createNewFile();
-  LibPngQuant.pngQuantFile(tmp, optmp, 65, 80, 1, 0.5f);
-  tmp.delete();
-  FileInputStream in = new FileInputStream(optmp);
-  byte[] brr=null;
-  try {
-   brr = new byte[in.available()];
-   in.read(brr);
-  } finally {
-   in.close();
-   optmp.delete();
-  }
-  return brr;
  }
  //懒得搞并行放这里了
  //https://github.com/Timeree/RwMapCompressor
@@ -326,8 +305,8 @@ public class rwmapOpt implements Runnable {
            continue;
           }                  
           byte imgarr[] = Base64.getDecoder().decode(property.getTextContent().replaceAll("\\s", ""));
-          File opt=ImageUtil.tmxPngOpt(imgarr, tlname.equalsIgnoreCase("items"), tileWidth, tileHeight, size, first, tilec, Ipare(attr, "columns"), tiles);
-          property.setTextContent(Base64.getEncoder().encodeToString(optpng(opt)));
+          byte opt[]=ImageUtil.tmxPngOpt(imgarr, tlname.equalsIgnoreCase("items"), tileWidth, tileHeight, size, first, tilec, Ipare(attr, "columns"), tiles);
+          property.setTextContent(Base64.getEncoder().encodeToString(opt));
          }
         }                     
        }

@@ -11,10 +11,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
+import java.nio.ByteBuffer;
+import org.pngquant;
+import java.nio.ByteOrder;
 
 public class ImageUtil {
  //这个函数给桌面端适配
- public static File tmxPngOpt(byte imgarr[], boolean ARGB_8888, int tileWidth, int tileHeight, int size, int first, int tilec, int tilew, HashMap tiles) throws IOException {
+ public static byte[] tmxPngOpt(byte imgarr[], boolean ARGB_8888, int tileWidth, int tileHeight, int size, int first, int tilec, int tilew, HashMap tiles) throws IOException {
   Bitmap.Config cf=ARGB_8888 ?Bitmap.Config.ARGB_8888: Bitmap.Config.RGB_565;
   BitmapFactory.Options options = new BitmapFactory.Options();
   options.inPreferredConfig = cf;
@@ -36,18 +39,11 @@ public class ImageUtil {
    }                           
   }
   bmp.recycle();
-  File tmp=rwmapOpt.openTmp();
-  //这是pngQuant-Android的屎优化不动
-  try {
-   FileOutputStream out=new FileOutputStream(tmp);
-   try {
-    bm2.compress(Bitmap.CompressFormat.PNG, 100, out);
-   } finally {
-    out.close();
-   }
-  } finally {
-   bm2.recycle();
-  }
-  return tmp;
+  int w=bmp.getWidth();
+  int h=bm2.getHeight();
+  int[] copy=new int[w * h];
+  bm2.getPixels(copy, 0, w, 0, 0, w, h);
+  bm2.recycle();
+  return pngquant.intEn(copy, pngquant.attr(65, 80, 1), pngquant.pngAttr(w, h, pngquant.ARGB, 0.5f));
  }
 }
