@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.nio.ByteBuffer;
 import org.pngquant;
 import java.nio.ByteOrder;
+import org.bitmapquant;
 
 public class ImageUtil {
  //这个函数给桌面端适配
@@ -22,7 +23,7 @@ public class ImageUtil {
   BitmapFactory.Options options = new BitmapFactory.Options();
   options.inPreferredConfig = cf;
   Bitmap bmp=BitmapFactory.decodeByteArray(imgarr, 0, imgarr.length, options);
-  Bitmap bm2= Bitmap.createBitmap(tileWidth, tileHeight * size, cf);                               
+  Bitmap bm2= Bitmap.createBitmap(tileWidth, tileHeight * size, Bitmap.Config.ARGB_8888);                               
   Canvas cv= new Canvas(bm2);
   Paint pt= new Paint();
   pt.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC));      
@@ -39,11 +40,8 @@ public class ImageUtil {
    }                           
   }
   bmp.recycle();
-  int w=bmp.getWidth();
-  int h=bm2.getHeight();
-  int[] copy=new int[w * h];
-  bm2.getPixels(copy, 0, w, 0, 0, w, h);
+  byte out[]=bitmapquant.en(bm2, pngquant.attr(65, 80, 1),  0.5f);
   bm2.recycle();
-  return pngquant.intEn(copy, pngquant.attr(65, 80, 1), pngquant.pngAttr(w, h, pngquant.ARGB, 0.5f));
+  return out;
  }
 }
