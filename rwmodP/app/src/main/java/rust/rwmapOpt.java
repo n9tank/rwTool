@@ -2,8 +2,6 @@ package rust;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -12,58 +10,58 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.List;
+import java.util.Map;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import me.steinborn.libdeflate.LibdeflateCompressor;
 import me.steinborn.libdeflate.LibdeflateJavaUtils;
+import org.libDeflate.UIPost;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import org.libDeflate.UIPost;
-import java.nio.file.Files;
-import java.io.IOException;
-import java.nio.file.Path;
-import org.pngquant;
+
 
 public class rwmapOpt implements Runnable {
  public static class key implements Comparable {
   public int hash;  
   public String str;
-//  public String type;  
   public int team;
   public int id;
   public key(String s, int t) {
    int h=17;   
    h = h * 31 + s.hashCode();
    h = h * 31 + t;
-   //h*31+ty==null?0:ty.hashCode();    
    hash = h;   
    team = t;
    str = s; 
-   //  type=ty;   
   }
   public int hashCode() {
    return hash;
   }
   public int compareTo(Object o) {
-   if (o instanceof key) {
-    key cp=(key)o;
-    int u=team - cp.team;
-    if (u != 0)return u;
-    return str.compareTo(cp.str);
-    /*if (u != 0)return u;
-     if(type==cp.type)return 0;
-     if(cp.type==null)return 1;
-     return type.compareTo(cp.type);    */  
-   }  
-   return 1;     
+   key cp=(key)o;
+   int u=team - cp.team;
+   if (u != 0)return u;
+   return str.compareTo(cp.str); 
   }
   public boolean equals(Object obj) {
    return compareTo(obj) == 0;
+  }
+ }
+ public static class base64png {
+  public NodeList node;
+  public Node img;
+  public int start;
+  public int len;
+  public base64png(NodeList list, Node png, int frist, int eop) {
+   node = list;
+   img = png;
+   start = frist;
+   len = eop;
   }
  }
  UIPost ui;
@@ -71,11 +69,29 @@ public class rwmapOpt implements Runnable {
  File ou;
  static HashMap<String,HashSet> remove;
  static HashMap<key,key> units;
- static HashMap<String,String> oldunits;
+ static HashMap<String,String> fovers;
+ static HashSet<String> oldunits;
+ public static String makeOld(String str) {
+  char[] cr=str.toCharArray();
+  char c=cr[0];
+  cr[0] = Character.isUpperCase(c) ?Character.toLowerCase(c): Character.toUpperCase(c);
+  return new String(cr);
+ }
  public rwmapOpt(File i, File u, UIPost uo) {
   in = i;
   ou = u;
   ui = uo;
+ }
+ public static int getPngSize(List<rwmapOpt.base64png> list, HashSet tree, HashMap<Integer,Integer> tiles) {
+  int size=0;
+  for (rwmapOpt.base64png png:list) {
+   for (int j=png.start,e=j + png.len;j < e;++j) {
+    Integer i=j;
+    if (!tree.contains(i) && tiles.containsKey(i))
+     ++size;
+   }
+  }
+  return size;
  }
  public static Node getFirst(int i, Node map) {
   NodeList list=map.getChildNodes();  
@@ -99,32 +115,51 @@ public class rwmapOpt implements Runnable {
   result.setNodeValue(value);
   attr.setNamedItem(result);
  }
- public static key getKey(Node node) {
+ public static key getKey(Node node, boolean fromClass) {
   node = getFirst(0, node);
   if (node == null)return null;
   String unit=null;
   int team=-1;
-  // String type=null;  
+  String type=null;  
   NodeList list=node.getChildNodes();
   for (int i=list.getLength();--i >= 0;) {
-   node = list.item(i);
-   if (node.getNodeType() != Node.ELEMENT_NODE)continue;
-   NamedNodeMap attr=node.getAttributes();
+   Node item = list.item(i);
+   if (item.getNodeType() != Node.ELEMENT_NODE)continue;
+   NamedNodeMap attr=item.getAttributes();
    String name=attr.getNamedItem("name").getNodeValue();
-   Node   valuenode=attr.getNamedItem("value");
+   Node valuenode=attr.getNamedItem("value");
    String value=valuenode.getNodeValue();
    if (name.equals("unit")) {
     unit = value;
+    if (fromClass && oldunits.contains(unit)) {
+     unit = makeOld(unit);
+    } else {
+     String replce=fovers.get(unit);
+     if (replce != null) {
+      //减短名称
+      valuenode.setNodeValue(replce);
+      unit = replce;
+     }
+    }
    } else if (name.equals("team")) {
     if (value.equals("none")) {
-     valuenode.setNodeValue("-1") ;   
+     valuenode.setNodeValue("-1");
     } else team = Integer.parseInt(value);
-   }/*else if(name.equals("type")){
-    type=value;
-    }*/
+   } else if (name.equals("type")) {
+    type = value;
+   }
   }
   if (unit == null)return null;
+  if (type != null)unit += "_" + type;
   return new key(unit, team);
+ }
+ public static key getUnits(Node node, boolean fromClass) {
+  key key=getKey(node, fromClass);
+  if (key == null)return null;
+  key ru=units.get(key);
+  if (ru != null)return ru;
+  key.id = -1;
+  return key;
  }
  public static ByteBuffer getBuf(Node item, byte[] buf) throws Exception {
   NamedNodeMap attr=item.getAttributes();
@@ -146,6 +181,12 @@ public class rwmapOpt implements Runnable {
   buffer.flip();
   return buffer;
  }
+ public static Node tile(Document document, int index) {
+  Node unittiles=document.createElement("tileset");  
+  NamedNodeMap unitat=unittiles.getAttributes();    
+  addAttr(document, unitat, "firstgid", String.valueOf(index));
+  return unittiles;
+ }
  public static ByteBuffer deflate(ByteBuffer buf) {
   LibdeflateCompressor def=new LibdeflateCompressor(12, 1);
   ByteBuffer ebuf=ByteBuffer.allocate(LibdeflateJavaUtils.getBufSize(buf.limit(), 1));
@@ -162,11 +203,15 @@ public class rwmapOpt implements Runnable {
    DocumentBuilder docBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
    Document document = docBuilder. parse(in);
    HashMap tiles = new HashMap();
+   HashSet treeTile=new HashSet();
+   HashMap utiles=new HashMap();
    Node map= document.getFirstChild();
    Node pr= getFirst(0, map);
    int max=0;
-   int unitid=0;   
+   int unitid=0;
+   int miscid=0;
    ArrayList layer=new ArrayList();
+   HashMap<Short,List<base64png>> pngs=new HashMap();
    Node unitnode=null;
    byte[] buf=new byte[8192];
    if ("properties".equals(pr.getNodeName()))map.removeChild(pr);
@@ -180,12 +225,12 @@ public class rwmapOpt implements Runnable {
      if (item.getChildNodes().getLength() == 0) {
       map.removeChild(item);
       continue;        
-     }       
-     NodeList objlist=item.getChildNodes()  ;    
+     }
+     NodeList objlist=item.getChildNodes();    
      if ((name = item.getAttributes().getNamedItem("name").getNodeValue()).equalsIgnoreCase("unitobjects") || name.equalsIgnoreCase("unitsobject")) {
       unitnode = item;       
      } else {
-      HashSet pot=remove.get("point");   
+      HashSet pot=remove.get("point");
       HashSet no=remove.get("none");            
       for (int i2=objlist.getLength();--i2 >= 0;) {
        Node next=objlist.item(i2);  
@@ -205,7 +250,7 @@ public class rwmapOpt implements Runnable {
         if (nodetype == null) remove(node, "id") ;
        }
       }}
-     continue;       
+     continue;
     } else if ("layer".equals(type)) {
      if ((name = item.getAttributes().getNamedItem("name").getNodeValue()).equalsIgnoreCase("set")) {
       map.removeChild(item);
@@ -218,100 +263,142 @@ public class rwmapOpt implements Runnable {
      buffer.order(ByteOrder.LITTLE_ENDIAN);
      while (buffer.hasRemaining()) {
       int n=buffer.getInt() & 536870911;
-      if (n > max)max = n;                
-      tiles.putIfAbsent(n, name);
+      tiles.putIfAbsent(n, "");
      }
      buffer.flip();
-    } else if ("tileset".equals(type)) { 
-     NodeList list=item.getChildNodes(); 
+    } else if ("tileset".equals(type)) {
      NamedNodeMap attr=item.getAttributes();
      int first=Ipare(attr, "firstgid"); 
-     Node src=item.getAttributes().getNamedItem("source");   
-     if (src != null && src.getNodeValue().equals("units.tsx")) {
-      unitid = first;  
-      continue;
-     }                        
+     Node src=item.getAttributes().getNamedItem("source");
+     boolean check=true;
+     if (src != null) {
+      String v=src.getNodeValue();
+      if ("units.tsx".equals(v)) {
+       unitid = first;
+       check = false;
+      } else if ("misc.tsx".equals(v)) {
+       miscid = first;
+       check = false;
+      }
+     }
      int c= Ipare(attr, "tilecount");
-     Node node= getFirst(i + 1, map); 
-     boolean hasnext;
-     if (hasnext = node.getNodeName().equals("tileset"));
+     Node node= getFirst(i + 1, map);
+     boolean hasnext = node.getNodeName().equals("tileset");
      if (c < 0) {
       if (hasnext)c = Ipare(node.getAttributes(), "firstgid");         
-      else c = max;          
-     } else c += first; 
+      else if (max > 0) c = max;
+      else c = max = first + 270;
+      //无法获取到底使用了多少地块
+     } else c += first;
      tag:         
-     if (c >= 0) {
-      if (first <= max) { 
-       for (;--c >= first;)
-        if (tiles.containsKey(c)) break tag;    
-      }             
-      map.removeChild(item);
+     if (check) {
+      for (int j=c;--j >= first;) {
+       if (tiles.containsKey(j)) {
+        break tag;
+       }
+      }
       if (!hasnext)max = first;
-      continue;        
+      map.removeChild(item);
+      continue;
      }
-     for (int l=list.getLength();--l >= 0;) {
-      Node next=list.item(l);
-      if ("tile".equals(next.getNodeName())) {
-       key key=getKey(next);
-       if (key != null) {
-        key.id = Ipare(next.getAttributes(), "id") + first;   
-        tiles.putIfAbsent(key, key);
-       }      
-      }   
+     if (max < c)max = c;
+     NodeList tilesetList = item.getChildNodes();
+     for (int i2=tilesetList.getLength();--i2 >= 0;) {
+      Node child = tilesetList.item(i2);
+      if ("tile".equals(child.getNodeName())) {
+       NamedNodeMap childAttr = child.getAttributes();
+       Node idn=  childAttr.getNamedItem("id"); 
+       Integer id = Integer.parseInt(idn.getNodeValue()) + first;
+       if (!tiles.containsKey(id)) 
+        item.removeChild(child);
+      }
      }
+    }
+   }
+   if (unitid == 0) {
+    int first=++max;
+    Node addunits= tile(document, first);
+    map.insertBefore(addunits, pr);
+    addAttr(document, addunits.getAttributes(), "source", "units.tsx");
+    unitid = first;
+    max += 270;
+   }
+   if (miscid == 0) {
+    int first=++max;
+    Node addunits= tile(document, first);
+    map.insertBefore(addunits, pr);
+    addAttr(document, addunits.getAttributes(), "source", "misc.tsx");
+    miscid = first;
+    max += 18;
+   }
+   tag:
+   for (int i =nodeList.getLength();--i >= 0;) {
+    Node item = nodeList.item(i);
+    if ("tileset".equals(item.getNodeName())) {
+     NamedNodeMap attr=item.getAttributes();
      int tileWidth = Ipare(attr, "tilewidth");
      if (tileWidth == 20) attr.removeNamedItem("tilewidth") ;           
      int tileHeight = Ipare(attr, "tileheight");
-     if (tileHeight == 20) attr.removeNamedItem("tileheight") ;                       
-     Node tname=attr.getNamedItem("name");
-     if (tname == null) continue;    
-     NodeList tilesetList = item.getChildNodes();
-     for (int i2= tilesetList.getLength();--i2 >= 0;) {
-      Node child = tilesetList.item(i2);
-      String childName = child.getNodeName();
-      if ("terraintypes".equals(childName)) {
-       item.removeChild(child);
-       continue;            
-      }              
-      if ("properties".equals(childName)) {
-       list = child.getChildNodes();    
-       for (int i3=list.getLength();--i3 >= 0;) {                
-        Node property = list.item(i3);
-        if (property.getNodeType() == Node.ELEMENT_NODE) {  
+     if (tileHeight == 20) attr.removeNamedItem("tileheight") ;
+     boolean unitGrop=false;
+     NodeList list=item.getChildNodes(); 
+     int first=Ipare(attr, "firstgid");
+     for (int l=list.getLength();--l >= 0;) {
+      Node next=list.item(l);
+      String name=next.getNodeName();
+      if ("tile".equals(name)) {
+       key key=getUnits(next, false);
+       if (key != null) {
+        int id=Ipare(next.getAttributes(), "id") + first;   
+        String str=key.str;
+        if (str.startsWith("tree")) {
+         char c=str.charAt(str.length() - 1);
+         Integer ids=id;
+         treeTile.add(ids);
+         tiles.put(ids, miscid + (c == 'e' ?9:  c - 38));
+         //'0'-10 =48-10
+         item.removeChild(next);
+         continue;
+        }
+        unitGrop = true;
+        if (key.id >= 0) {
+         tiles.put(id, unitid + key.id);
+         item.removeChild(next);
+         continue;
+        }
+        key.id = id;
+        utiles.putIfAbsent(key, key);
+       }
+      } else if ("terraintypes".equals(name)) {
+       item.removeChild(next);
+      } else if ("properties".equals(name)) {
+       NodeList plist = next.getChildNodes();
+       for (int i2=plist.getLength();--i2 >= 0;) {             
+        Node property = plist.item(i2);
+        if (property.getNodeType() == Node.ELEMENT_NODE) {
          name = property.getAttributes().getNamedItem("name").getNodeValue();         
          if (name.equals("layer") || name.equals("forced_autotile")) {
-          child.removeChild(property);
-          continue;                  
-         }                                     
+          next.removeChild(property);
+          continue;
+         }
          if ("embedded_png".equals(name)) {
-          Node img= getFirst(i2 + 1, item);  
-          if (img.getNodeName().equals("image"))item.removeChild(img);  
-          int tilec=Ipare(attr, "tilecount"); 
-          String tlname=null;
-          int size=0;
-          for (c = first + tilec;--c >= first;) {
-           Object o;              
-           if ((o = tiles.get(c)) != null) {
-            if (tlname == null)tlname = (String)o;              
-            ++size;
-           }              
-          } 
-          if (size == 0) {
-           map.removeChild(item);              
-           continue;
+          int tilec=Ipare(attr, "tilecount");
+          Short st=(short)((tileWidth << 8) | tileHeight);
+          List<rwmapOpt.base64png> listpng=pngs.get(st);
+          if (listpng == null) {
+           listpng = new ArrayList();
+           pngs.put(st, listpng);
           }
-          if (tlname.equalsIgnoreCase("units")) {
-           item.removeChild(property);
-           continue;
-          }                  
-          byte imgarr[] = Base64.getDecoder().decode(property.getTextContent().replaceAll("\\s", ""));
-          byte opt[]=ImageUtil.tmxPngOpt(imgarr, tlname.equalsIgnoreCase("items"), tileWidth, tileHeight, size, first, tilec, Ipare(attr, "columns"), tiles);
-          property.setTextContent(Base64.getEncoder().encodeToString(opt));
+          listpng.add(new base64png(list, getFirst(0, next), first, tilec));
+          map.removeChild(item);
+          continue tag;
          }
         }                     
        }
       }
      }
+     if (unitGrop && getFirst(0, item) == null)
+      map.removeChild(item);
     }
    }
    if (unitnode != null) {
@@ -325,11 +412,11 @@ public class rwmapOpt implements Runnable {
      Node o=(Node)layer.get(i);
      if (o.getAttributes().getNamedItem("name").getNodeValue().equalsIgnoreCase("units")) {
       unitlayer = (ByteBuffer)layer.get(i + 1);
-     }   
+     }
     }
     if (unitlayer == null) {
      unitlayer = ByteBuffer.allocate(lh * lw << 2);
-     unitlayer.order(ByteOrder.LITTLE_ENDIAN);   
+     unitlayer.order(ByteOrder.LITTLE_ENDIAN);
      Node addlayer=document.createElement("layer");   
      NamedNodeMap addattr= addlayer.getAttributes();    
      addAttr(document, addattr, "name", "units");  
@@ -339,30 +426,18 @@ public class rwmapOpt implements Runnable {
      addattr = data.getAttributes();     
      addAttr(document, addattr, "encoding", "base64");
      addAttr(document, addattr, "compression", "zlib");  
-     addlayer.appendChild(data); 
-     map.appendChild(addlayer);                       
+     addlayer.appendChild(data);
+     map.appendChild(addlayer);
      layer.add(addlayer);
-     layer.add(unitlayer);      
+     layer.add(unitlayer);
     }
-    int first=max + 1;    
-    int id=0;  
-    if (unitid == 0) {
-     Node addunits= document.createElement("tileset"); 
-     map.insertBefore(addunits, pr);      
-     NamedNodeMap addattr=addunits.getAttributes();   
-     addAttr(document, addattr, "source", "units.tsx"); 
-     addAttr(document, addattr, "firstgid", String.valueOf(first)); 
-     unitid = first;
-     first += 270;                 
-    }
-    Node unittiles=document.createElement("tileset");  
-    NamedNodeMap  unitat=unittiles.getAttributes();    
-    addAttr(document, unitat, "firstgid", String.valueOf(first));
+    Node unittiles=tile(document, ++max);  
     unittiles.appendChild(document.createElement("image"));         
-    NodeList objunits=unitnode.getChildNodes();  
+    NodeList objunits=unitnode.getChildNodes();
+    int idIndex=0;
     for (int i2=objunits.getLength();--i2 >= 0;) {
      Node next=objunits.item(i2);
-     remove:     
+     remove:
      if (next.getNodeType() == Node.ELEMENT_NODE) {
       NamedNodeMap nextattr=next.getAttributes();
       tag: {   
@@ -371,92 +446,104 @@ public class rwmapOpt implements Runnable {
        if (x < 0 || y < 0 || x > w * lw || y > h * lh)break tag;   
        int index=(x / w + y / h * lw) << 2;
        if (unitlayer.getInt(index) != 0)break tag;
-       key find=getKey(next);       
-       key key=units.get(find); 
-       boolean nounits;         
-       if (nounits = key == null) {
-        key = (key)tiles.putIfAbsent(find, find);
-        if (key == null)key = find;          
-        if (key.id == 0) {
+       key find=getUnits(next, true);
+       boolean nounits;
+       if (nounits = find.id < 0) {
+        rwmapOpt.key key = (key)utiles.putIfAbsent(find, find);
+        if (key == null) {
          Node tile=document.createElement("tile"); 
-         addAttr(document, tile.getAttributes(), "id", String.valueOf(id)); 
+         addAttr(document, tile.getAttributes(), "id", String.valueOf(idIndex++)); 
          Node posadd=document.createElement("properties");   
          Node por= document.createElement("property");
          NamedNodeMap poattr= por.getAttributes(); 
          addAttr(document, poattr, "name", "team");                 
-         addAttr(document, poattr, "value", String.valueOf(key.team)); 
+         addAttr(document, poattr, "value", String.valueOf(find.team)); 
          posadd.appendChild(por);
          por = document.createElement("property");
          poattr = por.getAttributes();            
          addAttr(document, poattr, "name", "unit"); 
-         String str=oldunits.get(key.str);          
-         addAttr(document, poattr, "value", str == null ?key.str: str);          
+         String name=find.str;
+         addAttr(document, poattr, "value", name);          
          posadd.appendChild(por);
          tile.appendChild(posadd);         
-         unittiles.appendChild(tile);                   
-         int ids= key.id = id++ + first;     
-         tiles.putIfAbsent(ids, "");      
-        }}
-       int ids=key.id; 
-       if (!nounits)ids += unitid; 
-       unitlayer.putInt(index, ids);          
+         unittiles.appendChild(tile);         
+         find.id = max++;
+        } else find = key;
+       }
+       int ids=find.id; 
+       unitlayer.putInt(index, nounits ?ids: unitid + ids);          
        unitnode.removeChild(next);
-       break remove;         
+       break remove;
       }
       remove(nextattr, "name") ;     
       remove(nextattr, "width");
       remove(nextattr, "height");
-      remove(nextattr, "rotation");    
-      remove(nextattr, "gid");                 
+      remove(nextattr, "rotation");
+      remove(nextattr, "gid");        
      }               
     }
     if (unittiles.getChildNodes().getLength() > 1)map.insertBefore(unittiles, pr); 
     if (getFirst(0, unitnode) == null)map.removeChild(unitnode);    
-   }  
+   }
+   if (pngs.size() > 0) {
+    for (Map.Entry<Short,List<base64png>> en:pngs.entrySet()) {
+     short s= en.getKey();
+     int h=s & 0xff;
+     int w=((s & 0xff00) >> 8);
+     Node tile=tile(document, ++max);
+     NamedNodeMap attr=tile.getAttributes();
+     if (h != 20)addAttr(document, attr, "height", String.valueOf(h));
+     if (w != 20)addAttr(document, attr, "width", String.valueOf(h));
+     Node posadd=document.createElement("properties");   
+     Node por= document.createElement("property");
+     addAttr(document, por.getAttributes(), "name", "embedded_png");                 
+     posadd.appendChild(por);
+     tile.appendChild(posadd);
+     List<rwmapOpt.base64png> list=en.getValue();
+     int size;
+     byte irr[]=ImageUtil.tmxOpt(list, treeTile, tiles, w, h, max, size = getPngSize(list, treeTile, tiles));
+     por.setTextContent(Base64.getEncoder().encodeToString(irr));
+     map.insertBefore(tile, pr);
+     for (rwmapOpt.base64png png:list) {
+      NodeList nodelist=png.node;
+      for (int j=nodelist.getLength();--j >= 0;) {
+       Node node=nodelist.item(j);
+       if ("tile".equals(node.getNodeName())) {
+        NamedNodeMap nattr=node.getAttributes();
+        int id=Ipare(nattr, "id");
+        Integer fid=png.start + id;
+        if (!treeTile.contains(fid) && (fid = (Integer) tiles.get(fid)) != null) {
+         addAttr(document, nattr, "id", String.valueOf(fid - max));
+         tile.appendChild(node);
+        }
+       }
+      }
+     }
+     max += size;
+    }
+   }
    int i=layer.size();
    while (--i > 0) {
     ByteBuffer warp= (ByteBuffer)layer.get(i);   
     Node data=(Node)layer.get(--i);    
-    if (!data.getAttributes().getNamedItem("name").getNodeValue().equalsIgnoreCase("units")) {  
-     int j=warp.limit();
-     while ((j -= 4) >= 0) {
-      int rt=warp.getInt(j);
-      Object to= tiles.get(rt & 536870911);    
-      if (to instanceof Integer) {
-       warp.putInt(j, (rt & -536870912) | (Integer)to);
-      }  
-     }}
+    int j=warp.limit();
+    while ((j -= 4) >= 0) {
+     int rt=warp.getInt(j);
+     Object to= tiles.get(rt & 536870911);    
+     if (to instanceof Integer) {
+      warp.putInt(j, (rt & -536870912) | (Integer)to);
+     }
+    }
     data = getFirst(0, data);
     ByteBuffer result=deflate(warp);
     data.getAttributes().getNamedItem("compression").setNodeValue("zlib");
     data.setTextContent(new String(Base64.getEncoder().encode(result).array()));
    }
-   for (i = nodeList.getLength(); --i >= 0;) {
-	Node item = nodeList.item(i);
-    if ("tileset".equals(item.getNodeName())) {
-     NamedNodeMap attr=item.getAttributes();
-     int firstgId = Ipare(attr, "firstgid");
-     NodeList tilesetList = item.getChildNodes();
-     for (int i2=tilesetList.getLength();--i2 >= 0;) {
-      Node child = tilesetList.item(i2);
-      if ("tile".equals(child.getNodeName())) {
-       NamedNodeMap childAttr = child.getAttributes();
-       Node idn=  childAttr.getNamedItem("id"); 
-       int id = Integer.parseInt(idn.getNodeValue());
-       Object key= tiles.get(firstgId + id);
-       if (key == null) item.removeChild(child);
-       else if (key instanceof Integer) {
-        idn.setNodeValue(String.valueOf((Integer)key - firstgId));
-       }               
-      }
-     }
-    }
-   }
    BufferedWriter buff=new BufferedWriter(new FileWriter(ou));
    try {
-	outxml(document, buff);
+    outxml(document, buff);
    } finally {
-	buff.close();
+    buff.close();
    }
   } catch (Throwable e) {
    ex = e;

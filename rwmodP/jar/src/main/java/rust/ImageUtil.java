@@ -1,60 +1,41 @@
 package rust;
-
-import java.awt.Graphics;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
+import java.util.Base64;
 import java.util.HashMap;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReadParam;
-import javax.imageio.ImageReader;
-import javax.imageio.stream.ImageInputStream;
-import java.awt.image.WritableRaster;
-import java.awt.image.DataBuffer;
-import java.awt.image.DataBufferInt;
+import java.util.List;
 import org.pngquant;
-import java.awt.image.DataBufferShort;
+import org.bitmapquant;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 import javax.imageio.stream.MemoryCacheImageInputStream;
+import java.io.IOException;
+import java.io.ByteArrayInputStream;
+import java.awt.image.DataBufferInt;
+import java.awt.Graphics;
+import java.util.HashSet;
 
 public class ImageUtil {
- public static byte[] tmxPngOpt(byte[] imgarr, boolean ARGB_8888, int tileWidth, int tileHeight, int size, int first, int tilec, int tilew, HashMap<Integer, Integer> tiles) throws IOException {
-  int imageType = ARGB_8888 ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_USHORT_565_RGB;
-  ImageInputStream inputStream =new MemoryCacheImageInputStream(new ByteArrayInputStream(imgarr));
-  ImageReader reader=ImageIO.getImageReadersByFormatName("png").next();
-  reader.setInput(inputStream, false, true);
-  BufferedImage img=null;
-  try {
-   img = new BufferedImage(reader.getWidth(0), reader.getHeight(0), imageType);
-   ImageReadParam pa=reader.getDefaultReadParam();
-   pa.setDestination(img);
-   reader.read(0, pa);
-  } finally {
-   reader.dispose();
-   inputStream.close();
-  }
-  WritableRaster rs=img.getRaster();
-  BufferedImage bm2 = new BufferedImage(tileWidth, tileHeight * size, imageType);
-  WritableRaster wt=bm2.getRaster();
-  int v = 0, j = 0;
-  for (int c = tilec; --c >= 0;) {
-   Integer key = c + first;
-   if (tiles.containsKey(key)) {
-    int left = c % tilew * tileWidth;
-    int top = c / tilew * tileHeight;
-    int n = v + tileHeight;
-    tiles.put(key, j++ + first);
-    wt.setDataElements(0, v, rs.createChild(left, top, tileWidth, tileHeight, 0, 0, null));
-    v = n;
+ public static byte[] tmxOpt(List<rwmapOpt.base64png> list, HashSet tree, HashMap<Integer,Integer> tiles, int w, int h, int j, int size) throws Exception {
+  int v=0;
+  BufferedImage bit=new BufferedImage(w, h * size, BufferedImage.TYPE_INT_ARGB);
+  Graphics gd=bit.getGraphics();
+  for (rwmapOpt.base64png png:list) {
+   byte imgarr[] = Base64.getDecoder().decode(png.img.getTextContent().replaceAll("\\s", ""));
+   BufferedImage img=ImageIO.read(new MemoryCacheImageInputStream(new ByteArrayInputStream(imgarr)));
+   int first=png.start;
+   int pw=img.getWidth() / w;
+   for (int c =png.len;--c>=0;) {
+    Integer key=c + first;     
+    if (!tree.contains(key) && tiles.containsKey(key)) {
+     int left=c % pw * w;   
+     int top=c / pw * h;
+     int n=v + h;
+     tiles.put(key, j++);
+     gd.drawImage(img, 0, w, v, n, left, left + w, top, top + h, null);
+     v = n;  
+    }
    }
   }
-  DataBuffer buf=wt.getDataBuffer();
-  byte out[];
-  long attr=pngquant.attr(65, 80, 1);
-  long outattr=pngquant.pngAttr(bm2.getWidth(), bm2.getHeight(), 0.5f);
-  if (ARGB_8888)
-   out = pngquant.intEn(((DataBufferInt)buf).getData(), attr, outattr);
-  else out = pngquant.shortEn((((DataBufferShort)buf).getData()), attr, outattr);
+  byte out[]=pngquant.intEn(((DataBufferInt)bit.getRaster().getDataBuffer()).getData(), pngquant.attr(65, 80, 1), pngquant.pngAttr(w, h * size, 0.5f));
   return out;
  }
 }

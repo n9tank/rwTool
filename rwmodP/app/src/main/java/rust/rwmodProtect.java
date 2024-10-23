@@ -70,22 +70,25 @@ public class rwmodProtect extends loaderManager implements Consumer {
   rwmapOpt.remove = re;
   HashMap<String,String> set;
   set = src.get("unit").m;
-  String oldunits[]=set.get("old").split(",");
+  String oldunits[]=set.get("over").split(",");
   int i=oldunits.length;
-  HashMap old=new HashMap();
+  HashSet oldu=new HashSet();
+  HashMap vk=new HashMap();
   while (--i > 0) {
    String v=oldunits[i];
    String k=oldunits[--i];
-   old.put(k, v);
+   vk.put(v, k);
+   oldu.add(k);
   }
-  rwmapOpt.oldunits = old;
+  rwmapOpt.oldunits = oldu;
+  rwmapOpt.fovers = vk;
   oldunits = set.get("unit").split(",");
   i = oldunits.length;
-  old = new HashMap();
+  HashMap old = new HashMap();
   while (--i > 0) {
-   String id=oldunits[i];
+   String team=oldunits[i];
    String v=oldunits[--i];
-   String team=oldunits[--i];
+   String id=oldunits[--i];
    rwmapOpt.key key=new rwmapOpt.key(v, Integer.parseInt(team));
    key.id = Integer.parseInt(id);
    old.put(key, key);
