@@ -23,6 +23,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import java.util.BitSet;
 
 
 public class rwmapOpt implements Runnable {
@@ -83,15 +84,22 @@ public class rwmapOpt implements Runnable {
   ui = uo;
  }
  public static int getPngSize(List<rwmapOpt.base64png> list, HashSet tree, HashMap<Integer,Integer> tiles) {
-  int size=0;
-  for (rwmapOpt.base64png png:list) {
+  int len=list.size();
+  int all=0;
+  for (;--len >= 0;) {
+   int size=0;
+   rwmapOpt.base64png png=list.get(len);
    for (int j=png.start,e=j + png.len;j < e;++j) {
     Integer i=j;
     if (!tree.contains(i) && tiles.containsKey(i))
      ++size;
    }
+   if (size <= 0)
+    list.set(len, null);
+   //remove代价比较大
+   all += size;
   }
-  return size;
+  return all;
  }
  public static Node getFirst(int i, Node map) {
   NodeList list=map.getChildNodes();  
@@ -231,7 +239,7 @@ public class rwmapOpt implements Runnable {
       unitnode = item;       
      } else {
       HashSet pot=remove.get("point");
-      HashSet no=remove.get("none");            
+      HashSet no=remove.get("obj");            
       for (int i2=objlist.getLength();--i2 >= 0;) {
        Node next=objlist.item(i2);  
        if (next.getNodeType() == Node.ELEMENT_NODE) {                      
@@ -500,11 +508,14 @@ public class rwmapOpt implements Runnable {
      posadd.appendChild(por);
      tile.appendChild(posadd);
      List<rwmapOpt.base64png> list=en.getValue();
-     int size;
-     byte irr[]=ImageUtil.tmxOpt(list, treeTile, tiles, w, h, max, size = getPngSize(list, treeTile, tiles));
+     int k=list.size();
+     int size=getPngSize(list, treeTile, tiles);
+     byte irr[]=ImageUtil.tmxOpt(list, treeTile, tiles, w, h, max, size);
      por.setTextContent(Base64.getEncoder().encodeToString(irr));
      map.insertBefore(tile, pr);
-     for (rwmapOpt.base64png png:list) {
+     for (;--k >= 0;) {
+      rwmapOpt.base64png png=list.get(k);
+      if (png == null)continue;
       NodeList nodelist=png.node;
       for (int j=nodelist.getLength();--j >= 0;) {
        Node node=nodelist.item(j);

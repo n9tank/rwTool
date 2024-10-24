@@ -86,16 +86,20 @@ public class savedump implements Runnable {
      try {
       int l;
       int off=0;
-      int offlen=brr.length - 15;
+      int blen=brr.length;
+      int offlen=blen - 15;
       //utf32-1
       boolean isxml=false;
       int xmlj[]=null;
-      while ((l = readLoop(gz, brr, off)) - off > 0) {
+      for (;;) {
+       l = readLoop(gz, brr, off);
        xmlj = finds(brr, xml_finds, l);
        int mapj[] = finds(brr, map_finds, l);
        if (isxml = (xmlj != null && (mapj == null ||  mapj[1] > xmlj[1])))break;
        else xmlj = mapj;
        if (xmlj != null)break;
+       if (l < blen)break;
+       //尾部结束没有必要复制
        System.arraycopy(brr, offlen , brr, 0, off = 15);
       }
       if (xmlj != null) {
@@ -118,17 +122,19 @@ public class savedump implements Runnable {
         k += head.length;
         byte[] finds = "/map".getBytes(set);
         off = finds.length - 1;
-        offlen = brr.length - off;
+        offlen = blen - off;
         BMFind bm = new BMFind(finds);
-        do{
+        for (;;) {
          len = l - k;
          out.write(brr, k, len);
-         int j = bm.indexOf(brr, k, l);
-         if (i >= 0)lastPos = pos + j + bm.drc.length - k;
+         i = bm.indexOf(brr, k, l);
+         if (i >= 0)lastPos = pos + i + bm.drc.length - k;
          pos += len;
          k = off;
-         System.arraycopy(brr, offlen, brr, 0, off);
-        }while((l = readLoop(gz, brr, off)) - off > 0);
+         if (l < blen)break;
+         System.arraycopy(brr, offlen , brr, 0, off);
+         l = readLoop(gz, brr, off);
+        }
         out.flush();
         ch.position(lastPos);
         byte end[]=">".getBytes(set);

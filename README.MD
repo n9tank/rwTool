@@ -16,14 +16,14 @@
 
 - [地图精简](https://github.com/Timeree/RwMapCompressor)
 基于RwMapCompressor修改的地图压缩器，提供强力的压缩效果。
-（建议使用内置图像减少大小，如需继续优化请实现合并图像，相似图像替换）
+（建议使用v1模板）
 
 - png压缩
 基于pngquant，压缩效果不会太差。
 
 # 开关
 
-- log 启用记录日志，这将把错误日志写出在Android/data/rust.rwTool/cache，仅用于debug。（未提供Debug版本）
+错误日志会保存在在Android/data/rust.rwTool/cache。（未提供Debug版本）
 
 - lib 启用加载依赖，这将使用内置的lib.zip作为加载依赖。
 
@@ -33,10 +33,8 @@
 
 - head 决定zip文件头，为空禁用，只有一个条目则只写出头，用“,”分割，格式：最小大小，随机大小，…。
 
-- keep 保留未解压大小，用于改善性能，为空禁用。
+- keepSize 保留压缩后的大小，用于改善性能，为空禁用。
 
 - split 文件路径“/”分割计算，为空禁用，格式：NN。(0-9)，最大分割数-1，最大分割长度-1。
 
-- encode tmx提取的编码集（已废弃）
-
-- boomlen 在解压时超过该长度跳过条目。
+- dumpMax 在解压时超过该长度中断条目。

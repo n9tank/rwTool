@@ -31,7 +31,7 @@ public class zipunpack implements Runnable {
  File ou;
  UIPost ui;
  boolean raw;
- static int boomlen; 
+ static int dumpMaxSize; 
  public zipunpack(File i, File o, boolean fast, UIPost u) {
   in = i;
   ou = o;
@@ -97,7 +97,7 @@ public class zipunpack implements Runnable {
        if (put != null) {
         zipout.putEntry(put, true);
         zipout.write(buf, 0, size);
-        int usize=boomlen - size;
+        int usize=dumpMaxSize - size;
         int i;
         while ((i = ParallelDeflate.readLoop(io, buf)) > 0 && usize > 0) {
           zipout.write(buf, 0, i);

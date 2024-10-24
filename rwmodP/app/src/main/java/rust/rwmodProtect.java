@@ -44,7 +44,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
  String musicPath;
  int musicPut=-1; 
  String oggput; 
- boolean raw; 
+ boolean raw;
+ static int BGMShortCharCounts;
  static int maxSplit;
  static int splitMod; 
  static HashSet skip;
@@ -70,7 +71,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
   rwmapOpt.remove = re;
   HashMap<String,String> set;
   set = src.get("unit").m;
-  String oldunits[]=set.get("over").split(",");
+  String oldunits[]=set.get("replace").split(",");
   int i=oldunits.length;
   HashSet oldu=new HashSet();
   HashMap vk=new HashMap();
@@ -94,14 +95,14 @@ public class rwmodProtect extends loaderManager implements Consumer {
    old.put(key, key);
   }
   rwmapOpt.units = old;
-  set = src.get("dump").m;
-  zipunpack.boomlen = Integer.parseInt(set.get("boomlen"));    
   set = src.get("ini").m;
-  String str[]=set.get("head").split(",");
-  int len=str.length;  
-  if (len >= 1) {
+  zipunpack.dumpMaxSize = Integer.parseInt(set.get("dumpMax"));    
+  String str=set.get("head");
+  if (str.length() > 0) {
+   String[] list=str.split(",");
+   int len=list.length;
    int[] irr=new int[len];
-   while (--len >= 0)irr[len] = Integer.parseInt(str[len]);
+   while (--len >= 0)irr[len] = Integer.parseInt(list[len]);
    zippack.head = irr;
   }
   char irr[]=set.get("split").toCharArray();
@@ -109,7 +110,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
    maxSplit = irr[0] - '/';
    splitMod = (int)Math.pow(maxSplit, irr[1] - '/');  
   }
-  zippack.keepUnSize = set.get("keep").length() > 0;
+  zippack.keepSize = set.get("keepSize").length() > 0;
+  BGMShortCharCounts = Integer.parseInt(set.get("BGMS"));
   cr = set.get("chars").toCharArray();
   HashSet put=new HashSet();
   skip = put;
@@ -502,8 +504,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
       str = str.replace("\\", "/").replaceFirst("^/+", "");
       if (str.length() > 0 && !str.endsWith("/"))str = str.concat("/");
       musicPath = str;
-      int max=maxSplit;      
-      appendName(musicPut = new Random().nextInt(5 * Math.max(1, max)), false, mbuff);
+      int max=maxSplit;
+      appendName(musicPut = new Random().nextInt(BGMShortCharCounts * Math.max(1, max) + 1), false, mbuff);
       if (max > 0)mbuff.setLength(mbuff.length() - 2);    
       map.put("sourceFolder", oggput = mbuff.toString());
      }
