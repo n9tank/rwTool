@@ -44,7 +44,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
  String musicPath;
  int musicPut=-1; 
  String oggput; 
- boolean raw; 
+ boolean raw;
+ static int oggs;
  static int maxSplit;
  static int splitMod; 
  static HashSet skip;
@@ -94,9 +95,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
    old.put(key, key);
   }
   rwmapOpt.units = old;
-  set = src.get("dump").m;
-  zipunpack.boomlen = Integer.parseInt(set.get("boomlen"));    
   set = src.get("ini").m;
+  zipunpack.boomlen = Integer.parseInt(set.get("boomlen"));    
   String str[]=set.get("head").split(",");
   int len=str.length;  
   if (len >= 1) {
@@ -110,6 +110,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
    splitMod = (int)Math.pow(maxSplit, irr[1] - '/');  
   }
   zippack.keepUnSize = set.get("keep").length() > 0;
+  oggs = Integer.parseInt(set.get("oggs"));
   cr = set.get("chars").toCharArray();
   HashSet put=new HashSet();
   skip = put;
@@ -502,8 +503,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
       str = str.replace("\\", "/").replaceFirst("^/+", "");
       if (str.length() > 0 && !str.endsWith("/"))str = str.concat("/");
       musicPath = str;
-      int max=maxSplit;      
-      appendName(musicPut = new Random().nextInt(5 * Math.max(1, max)), false, mbuff);
+      int max=maxSplit;
+      appendName(musicPut = new Random().nextInt(oggs * Math.max(1, max) + 1), false, mbuff);
       if (max > 0)mbuff.setLength(mbuff.length() - 2);    
       map.put("sourceFolder", oggput = mbuff.toString());
      }
