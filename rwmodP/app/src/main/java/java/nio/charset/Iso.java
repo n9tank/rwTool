@@ -13,13 +13,12 @@ public class Iso extends CharsetEncoder {
  }
  //我不知道为什么这个方法对于一些字符返回true，我试着重载它
  public boolean canEncode(CharSequence cs) {
-  int i=cs.length();
-  while (-- i >= 0) {
+  for (int i=0,len=cs.length();i < len;i++) {
    if (cs.charAt(i) > 0xff)return false;
   }
   return true;
  }
  protected CoderResult encodeLoop(CharBuffer in, ByteBuffer out) {
-  return en.encodeLoop(in,out);
+  return en.encodeLoop(in, out);
  }
 }

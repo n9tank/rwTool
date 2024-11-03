@@ -1,6 +1,8 @@
 package rust;
 
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -18,22 +20,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import rust.loaders;
-import rust.iniobj;
-import rust.loader;
-import rust.rwmapOpt;
-import rust.savedump;
-import rust.zippack;
-import rust.zipunpack;
 import org.libDeflate.ParallelDeflate;
+import org.libDeflate.UIPost;
 import org.libDeflate.ZipEntryM;
 import org.libDeflate.ZipEntryOutput;
-import org.libDeflate.ZipInputGet;
 import org.libDeflate.ZipUtil;
-import java.nio.charset.Charset;
-import org.libDeflate.UIPost;
-import java.io.IOException;
-import java.io.BufferedInputStream;
+import rust.iniobj;
+import rust.loader;
+import rust.loaders;
+import rust.rwmapOpt;
+import rust.zippack;
+import rust.zipunpack;
 public class rwmodProtect extends loaderManager implements Consumer {
  HashMap lowmap;
  ConcurrentHashMap resmap;
@@ -48,7 +45,6 @@ public class rwmodProtect extends loaderManager implements Consumer {
  static int BGMShortCharCounts;
  static int maxSplit;
  static int splitMod; 
- static HashSet skip;
  static char[] cr;
  static HashMap<String,Integer> Res;
  public rwmodProtect(File in, File ou, UIPost ui, boolean rw) {
@@ -62,47 +58,17 @@ public class rwmodProtect extends loaderManager implements Consumer {
   return addLoder(za, str, str, null, getType(str) == 4);
  }
  public static void init(HashMap<String,section> src)throws Exception {
-  HashMap re=src.get("tmx").m;
-  for (Map.Entry<String,Object> en:(Set<Map.Entry>)re.entrySet()) {
-   HashSet add=new HashSet();
-   Collections.addAll(add, ((String)en.getValue()).split(","));  
-   en.setValue(add);
-  }
-  rwmapOpt.remove = re;
-  HashMap<String,String> set;
-  set = src.get("unit").m;
-  String oldunits[]=set.get("replace").split(",");
-  int i=oldunits.length;
-  HashSet oldu=new HashSet();
-  HashMap vk=new HashMap();
-  while (--i > 0) {
-   String v=oldunits[i];
-   String k=oldunits[--i];
-   vk.put(v, k);
-   oldu.add(k);
-  }
-  rwmapOpt.oldunits = oldu;
-  rwmapOpt.fovers = vk;
-  oldunits = set.get("unit").split(",");
-  i = oldunits.length;
-  HashMap old = new HashMap();
-  while (--i > 0) {
-   String team=oldunits[i];
-   String v=oldunits[--i];
-   String id=oldunits[--i];
-   rwmapOpt.key key=new rwmapOpt.key(v, Integer.parseInt(team));
-   key.id = Integer.parseInt(id);
-   old.put(key, key);
-  }
-  rwmapOpt.units = old;
-  set = src.get("ini").m;
+  rwmapOpt.init(src);
+  HashMap<String,String> set = src.get("ini").m;
   zipunpack.dumpMaxSize = Integer.parseInt(set.get("dumpMax"));    
   String str=set.get("head");
   if (str.length() > 0) {
-   String[] list=str.split(",");
-   int len=list.length;
+   String[] list = str.split(",");
+   int i = 0,len = list.length;
    int[] irr=new int[len];
-   while (--len >= 0)irr[len] = Integer.parseInt(list[len]);
+   do{
+	irr[i] = Integer.parseInt(list[i]);
+   }while(++i < len);
    zippack.head = irr;
   }
   char irr[]=set.get("split").toCharArray();
@@ -114,16 +80,14 @@ public class rwmodProtect extends loaderManager implements Consumer {
   BGMShortCharCounts = Integer.parseInt(set.get("BGMS"));
   cr = set.get("chars").toCharArray();
   HashSet put=new HashSet();
-  skip = put;
-  Collections.addAll(put, set.get("skip").split(","));
   HashMap res=new HashMap();
   Res = res;
   putType(res, set, "image", -1);
   putType(res, set, "images", 0);
   putType(res, set, "music", 1);  
  }
- public static void putType(HashMap res, HashMap set, String key, int type) {
-  String[] list=((String)set.get(key)).split(",");
+ public static void putType(HashMap res, HashMap map, String key, int type) {
+  String[] list=((String)map.get(key)).split(",");
   Integer rp=Integer.valueOf(type);
   for (String str:list)
    res.put(str, rp);
@@ -243,9 +207,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
   loader alls=ini.all;
   StringBuilder buff=new StringBuilder();
   StringBuilder bf=new StringBuilder();
-  String file=ini.src;
+  CharSequence file=loader.getSuperPath(ini.src);
   boolean ws=maxSplit > 0;  
-  file = loader.getSuperPath(file);
   HashMap map=ini.ini;
   loaders copy=ini.copy;
   loader[] orr= copy.copy;
@@ -268,6 +231,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
   }
   String str;
   iniobj put=ini.put;
+  boolean isini=ini.isini;
+  if (isini)put.as();
   HashMap as=put.put;
   iniobj old=ini.old;
   if (old == null)old = em;
@@ -290,19 +255,25 @@ public class rwmodProtect extends loaderManager implements Consumer {
    HashMap list=licp == null ?null: licp.m;
    for (Map.Entry<String,String> en2:(Set<Map.Entry<String,String>>)asmap.entrySet()) {
     String key=en2.getKey();
-    if (!skip.contains(key)) {
+    if (!"@copyFrom_skipThisSection".equals(key)) {
      String value=en2.getValue();
      boolean eq= oldmap != null && value.equals(oldmap.get(key)); 
      HashMap<String, Integer> res=rwmodProtect.Res;
      Object o=res.get(key);
      if (o != null) {
       int type = (Integer)o;
-      String next=put.get(value, ac, cpys, buff);
+      String next=isini ?value: put.get(value, ac, cpys, buff);
       if (next != null) {
        String[] nowlist=AllPath(next, file, type, buff);
-       boolean same=value.equals(next);
-       String coe;
-       eq &= same && (lastcoe != null && (coe = (String)lastcoe.get(key)) != null && Arrays.equals(nowlist, AllPath(next , coe, type, buff)));
+	   boolean same;
+	   if (isini) {
+		same = value.equals(next);
+		CharSequence coe;
+		eq &= same && (lastcoe != null && (coe = (CharSequence)lastcoe.get(key)) != null && Arrays.equals(nowlist, AllPath(next , coe, type, buff)));
+	   } else {
+		same = true;
+		eq |= iniobj.withDefine(value);
+	   }
        //补修宏绕过
        if (!same || !eq) {
         if (list == null) {
@@ -323,7 +294,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
            if (i <= 0)i = add.length();
            if (ws)buff.append("ROOT:");
            str = add.substring(st, i);
-           ZipEntry ze = toPath(path(str));
+           ZipEntry ze = toPath(str);
            if (ze != null) {
             String name=ze.getName();
 			Object obj;
@@ -369,15 +340,14 @@ public class rwmodProtect extends loaderManager implements Consumer {
   }
   return st;
  }
- String[] AllPath(String str, String path, int type, StringBuilder buff) {
+ String[] AllPath(String str, CharSequence path, int type, StringBuilder buff) {
   //不予修复非法auto图像
   if (str.length() == 0 || str.equalsIgnoreCase("none") || str.equals("IGNORE") || str.equalsIgnoreCase("auto"))
    return null;
   str = str.replace('\\', '/');
-  String list[];
   buff.setLength(0);
   boolean ru=false;
-  list = type < 0 ?new String[]{str}: str.split(",");
+  String list[] = type < 0 ?new String[]{str}: str.split(",");
   int l=list.length,m=0;
   do {
    buff.setLength(0);
@@ -402,8 +372,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
     buff.append(path);
    }
    buff.append(str);
-   str = buff.toString();
-   list[m] = buff.toString();
+   list[m] = path(buff.toString());
+   //注意不要使用/./这种路径
   }while(++m < l);
   if (!ru)list = null;
   return list;
@@ -429,27 +399,19 @@ public class rwmodProtect extends loaderManager implements Consumer {
   }
   return 1;
  }
- volatile int is;
+ volatile boolean is;
  public void accept(Object o) {
-  switch (is) {
-   case 0:
-	loader lod=(loader)o;
-	lod.put.as();
-	break;
-   case 1:
-	try {
-	 write((loader)o);
-	} catch (Throwable e) {
-	 is = 2;
-     uih.onError(e);
-	}
-	break;
+  if (!is) {
+   try {
+	write((loader)o);
+   } catch (Throwable e) {
+	is = true;
+	uih.onError(e);
+   }
   }
  }
  public void end() {
   List vl=Arrays.asList(Zipmap.values().toArray());
-  vl.parallelStream().forEach(this);
-  is = 1;
   Collections.shuffle(vl);
   StringBuilder bf=new StringBuilder();
   for (Object obj:vl) {
@@ -464,9 +426,9 @@ public class rwmodProtect extends loaderManager implements Consumer {
  public Object call() {
   resmap = new ConcurrentHashMap();
   AtomicInteger[] add=new AtomicInteger[3];
+  for (int i=0;i < add.length;i++)
+   add[i] = new AtomicInteger();
   adds = add;
-  int i=3;
-  while (i > 0)add[--i] = new AtomicInteger();
   arr = new int[4];
   HashMap lows=new HashMap();
   lowmap = lows;
@@ -485,7 +447,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
    do{
     ZipEntry zipEntry=zipEntrys.nextElement();
     String fileName=zipEntry.getName();
-    String root=loader.getSuperPath(fileName);
+    String root=loader.getSuperPath(fileName).toString();
     if (!rset.add(root) && (name == null || root.length() < name.length()))name = root;
     lows.putIfAbsent(fileName.toLowerCase(), zipEntry);
    }while(zipEntrys.hasMoreElements());
@@ -501,7 +463,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
      HashMap map=cp.m;
      String str =(String)map.get("sourceFolder");
      if (str != null) {
-      str = str.replace("\\", "/").replaceFirst("^/+", "");
+      str = str.replace('\\', '/').replaceFirst("^/+", "");
       if (str.length() > 0 && !str.endsWith("/"))str = str.concat("/");
       musicPath = str;
       int max=maxSplit;
@@ -522,7 +484,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
 	if (type == 4) {
 	 addLoder(zipEntry, name, name, null, true);
 	} else if (type == 0) {
-     zippack.writeOrCopy(cre, zip, zipEntry, ZipUtil.newEntry(loader.getName(name).concat("/"), 12), raw);
+     zippack.writeOrCopy(cre, zip, zipEntry, ZipUtil.newEntry(loader.getName(name) + "/", 12), raw);
 	} else if (type >= 5) {
      ogg.add(zipEntry);
     }

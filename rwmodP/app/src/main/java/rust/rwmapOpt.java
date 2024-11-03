@@ -1,29 +1,28 @@
 package rust;
 import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileWriter;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.InflaterInputStream;
+import java.util.Set;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import me.steinborn.libdeflate.Libdeflate;
 import me.steinborn.libdeflate.LibdeflateCompressor;
+import me.steinborn.libdeflate.LibdeflateDecompressor;
 import me.steinborn.libdeflate.LibdeflateJavaUtils;
 import org.libDeflate.UIPost;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import java.util.BitSet;
 
 
 public class rwmapOpt implements Runnable {
@@ -83,10 +82,45 @@ public class rwmapOpt implements Runnable {
   ou = u;
   ui = uo;
  }
+ public static void init(HashMap<String,section> src){
+  HashMap re=src.get("tmx").m;
+  for (Map.Entry<String,Object> en:(Set<Map.Entry>)re.entrySet()) {
+   HashSet add=new HashSet();
+   Collections.addAll(add, ((String)en.getValue()).split(","));  
+   en.setValue(add);
+  }
+  rwmapOpt.remove = re;
+  HashMap<String,String> set= src.get("unit").m;
+  String list[]=set.get("replace").split(",");
+  HashSet oldunits=new HashSet();
+  HashMap fovers=new HashMap();
+  int i=0,len=list.length;
+  do {
+   String k=list[i++];
+   String v=list[i++];
+   fovers.put(v, k);
+   oldunits.add(k);
+  } while (i < len);
+  rwmapOpt.oldunits = oldunits;
+  rwmapOpt.fovers = fovers;
+  list = set.get("unit").split(",");
+  HashMap units = new HashMap();
+  i = 0;
+  len = list.length;
+  do {
+   String id=list[i++];
+   String v=list[i++];
+   String team=list[i++];
+   rwmapOpt.key key=new rwmapOpt.key(v, Integer.parseInt(team));
+   key.id = Integer.parseInt(id);
+   units.put(key, key);
+  }while (i < len);
+  rwmapOpt.units = units;
+ }
  public static int getPngSize(List<rwmapOpt.base64png> list, HashSet tree, HashMap<Integer,Integer> tiles) {
-  int len=list.size();
+  int listSize=list.size();
   int all=0;
-  for (;--len >= 0;) {
+  for (int len=0;len < listSize;++len) {
    int size=0;
    rwmapOpt.base64png png=list.get(len);
    for (int j=png.start,e=j + png.len;j < e;++j) {
@@ -130,7 +164,7 @@ public class rwmapOpt implements Runnable {
   int team=-1;
   String type=null;  
   NodeList list=node.getChildNodes();
-  for (int i=list.getLength();--i >= 0;) {
+  for (int i=0,len=list.getLength();i<len;i++) {
    Node item = list.item(i);
    if (item.getNodeType() != Node.ELEMENT_NODE)continue;
    NamedNodeMap attr=item.getAttributes();
@@ -169,22 +203,22 @@ public class rwmapOpt implements Runnable {
   key.id = -1;
   return key;
  }
- public static ByteBuffer getBuf(Node item, byte[] buf) throws Exception {
+ public static ByteBuffer getBuf(Node item) throws Exception {
   NamedNodeMap attr=item.getAttributes();
   int w= Ipare(attr, "width");
   int h= Ipare(attr, "height");
   ByteBuffer buffer= ByteBuffer.allocateDirect(w * h << 2);
   Node data = getFirst(0, item);
   String dataValue = data.getTextContent().trim();
-  //这个部分没有必要使用libDeflate加速，因为区块太小，所以不启用解码模块
-  InputStream in =new ByteArrayInputStream(Base64.getDecoder().decode(dataValue));
-  if (data.getAttributes().getNamedItem("compression").getNodeValue().equals("gzip"))in = new GZIPInputStream(in);
-  else in = new InflaterInputStream(in);
+  ByteBuffer basebuf=ByteBuffer.wrap(Base64.getDecoder().decode(dataValue));
+  int type=data.getAttributes().getNamedItem("compression").getNodeValue().equals("gzip") ?Libdeflate.GZIP: Libdeflate.ZLIB;
+  LibdeflateDecompressor def=new LibdeflateDecompressor(type);
   try {
-   int len;  
-   while ((len = in.read(buf)) > 0)buffer.put(buf, 0, len);
+   while (basebuf.hasRemaining())
+    def.decompress(basebuf, buffer);
+   //这里会导致上下文切换
   } finally {
-   in.close();
+   def.close();
   }
   buffer.flip();
   return buffer;
@@ -221,7 +255,6 @@ public class rwmapOpt implements Runnable {
    ArrayList layer=new ArrayList();
    HashMap<Short,List<base64png>> pngs=new HashMap();
    Node unitnode=null;
-   byte[] buf=new byte[8192];
    if ("properties".equals(pr.getNodeName()))map.removeChild(pr);
    NodeList nodeList =map.getChildNodes();
    for (int i =nodeList.getLength();--i >= 0;) {
@@ -265,7 +298,7 @@ public class rwmapOpt implements Runnable {
       continue;
      }
      pr = item;
-     ByteBuffer buffer=getBuf(item, buf);
+     ByteBuffer buffer=getBuf(item);
      layer.add(item);                      
      layer.add(buffer);
      buffer.order(ByteOrder.LITTLE_ENDIAN);
@@ -508,13 +541,11 @@ public class rwmapOpt implements Runnable {
      posadd.appendChild(por);
      tile.appendChild(posadd);
      List<rwmapOpt.base64png> list=en.getValue();
-     int k=list.size();
      int size=getPngSize(list, treeTile, tiles);
      byte irr[]=ImageUtil.tmxOpt(list, treeTile, tiles, w, h, max, size);
      por.setTextContent(Base64.getEncoder().encodeToString(irr));
      map.insertBefore(tile, pr);
-     for (;--k >= 0;) {
-      rwmapOpt.base64png png=list.get(k);
+     for (rwmapOpt.base64png png:list) {
       if (png == null)continue;
       NodeList nodelist=png.node;
       for (int j=nodelist.getLength();--j >= 0;) {

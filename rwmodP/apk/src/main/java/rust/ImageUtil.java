@@ -19,8 +19,7 @@ public class ImageUtil {
  public static byte[] tmxOpt(List<rwmapOpt.base64png> list, HashSet tree, HashMap<Integer,Integer> tiles, int w, int h, int j, int size) {
   int v=0;
   Bitmap bit=Bitmap.createBitmap(w, h * size, Bitmap.Config.ARGB_8888);
-  for (int i=list.size();--i >= 0;) {
-   rwmapOpt.base64png png=list.get(i);
+  for (rwmapOpt.base64png png:list) {
    if (png == null)continue;
    byte imgarr[] = Base64.getDecoder().decode(png.img.getTextContent().replaceAll("\\s", ""));
    Bitmap bmp=BitmapFactory.decodeByteArray(imgarr, 0, imgarr.length);
@@ -29,7 +28,7 @@ public class ImageUtil {
    Paint pt= new Paint();
    pt.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC));
    int first=png.start;
-   for (int c =png.len;--c >= 0;) {
+   for (int c=0,len=png.len;c<len;++c) {
     Integer key=c + first;     
     if (!tree.contains(key) && tiles.containsKey(key)) {
      int left=c % pw * w;   

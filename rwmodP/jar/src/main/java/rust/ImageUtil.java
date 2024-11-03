@@ -19,14 +19,13 @@ public class ImageUtil {
   int v=0;
   BufferedImage bit=new BufferedImage(w, h * size, BufferedImage.TYPE_INT_ARGB);
   Graphics gd=bit.getGraphics();
-  for (int i=list.size();--i >= 0;) {
-   rwmapOpt.base64png png=list.get(k);
+  for (rwmapOpt.base64png png:list) {
    if (png == null)continue;
    byte imgarr[] = Base64.getDecoder().decode(png.img.getTextContent().replaceAll("\\s", ""));
    BufferedImage img=ImageIO.read(new MemoryCacheImageInputStream(new ByteArrayInputStream(imgarr)));
    int first=png.start;
    int pw=img.getWidth() / w;
-   for (int c =png.len;--c >= 0;) {
+   for (int c=0,len=png.len;c<len;++c) {
     Integer key=c + first;     
     if (!tree.contains(key) && tiles.containsKey(key)) {
      int left=c % pw * w;   
@@ -38,7 +37,7 @@ public class ImageUtil {
     }
    }
   }
-  byte out[]=pngquant.intEn(((DataBufferInt)bit.getRaster().getDataBuffer()).getData(), pngquant.attr(65, 80, 1), pngquant.pngAttr(w, h * size, 0.5f));
+  byte out[]=pngquant.intEn(((DataBufferInt)bit.getRaster().getDataBuffer()).getData(), pngquant.attr(65, 80, 1), w, h * size, 0.5f);
   return out;
  }
 }

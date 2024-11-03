@@ -25,8 +25,8 @@ namespace 'rust.rwTool'
         minSdkVersion 26
         //noinspection ExpiredTargetSdkVersion
         targetSdkVersion 29
-        versionCode 241101
-        versionName "0.8.9"
+        versionCode 241108
+        versionName "0.8.10"
     }
     buildTypes {
         release {

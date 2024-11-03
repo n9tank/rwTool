@@ -3,12 +3,12 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Arrays;
 
 public class iniobj {
  public HashMap put;
@@ -27,7 +27,7 @@ public class iniobj {
   return put;
  }
  public iniobj(HashMap map, loader putini) {
-  String path=putini.src;
+  CharSequence path=loader.getSuperPath(putini.src);
   put = map;
   for (section cpy:(Collection<section>)map.values()) {
    HashMap m=cpy.m;
@@ -40,7 +40,7 @@ public class iniobj {
   }
  }
  public void put(iniobj drc, loader putini) {
-  String path=putini == null ?null: putini.src;
+  CharSequence path=putini == null ?null: loader.getSuperPath(putini.src);
   HashMap src=put;
   for (Map.Entry<String,section>en:(Set<Map.Entry>)drc.put.entrySet()) {
    String ac=en.getKey();
@@ -133,7 +133,13 @@ public class iniobj {
   sset.add("sqrt");
  }
  static final Pattern find=Pattern.compile("[a-zA-Z_][0-9a-zA-Z_.]*");
- static final Pattern find2=Pattern.compile("[-+/*^%()]");
+ static final Pattern mathExp=Pattern.compile("[-+/*^%()]");
+ public static boolean withDefine(String str) {
+  int i=str.indexOf("${");
+  if (i < 0)return false;
+  str.indexOf('}', i + 2);
+  return i >= 0;
+ }
  String get(String str, String eqz, section cpy, StringBuilder buff) {
   buff.setLength(0);
   int i=0,j=0;
@@ -170,9 +176,8 @@ public class iniobj {
      } else q = k;
     }
     buff.append(key, q, key.length());
-    if (find2.matcher(key).find()) {
-     CharSequence math = buff.subSequence(st, buff.length());
-     double b= MathExp.get(math);
+    if (mathExp.matcher(key).find()) {
+     double b= MathExp.get(buff.subSequence(st, buff.length()));
      buff.setLength(st);
      int intd=(int)b;
      if (intd == b) buff.append(intd);

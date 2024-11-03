@@ -158,10 +158,8 @@ public class Main extends Activity {
   if (type.equals(Intent.ACTION_SEND))o = intent.getParcelableExtra(Intent.EXTRA_STREAM);
   else if (type.equals(intent.ACTION_SEND_MULTIPLE)) {
    ArrayList<Uri> arr = intent.getParcelableArrayListExtra(intent.EXTRA_STREAM);
-   int i=0,l=arr.size();
-   while (i < l) {
-    add(arr.get(i++));
-   }
+   for (int i=0,l=arr.size();i < l;++i)
+    add(arr.get(i));
    return;
   } else o = intent.getData();
   if (o != null)add(o);
@@ -196,7 +194,7 @@ public class Main extends Activity {
   File f=new File(path);
   if (f.exists()) {
    StringUi StringUi=new StringUi(path);
-   if (UiHandler.DefaultRunTask(f,this.bu.getCheckedRadioButtonId(), R.id.pr, R.id.pack, raw.isChecked(), getExternalFilesDir(null),StringUi))
+   if (UiHandler.DefaultRunTask(f, this.bu.getCheckedRadioButtonId(), R.id.pr, R.id.pack, raw.isChecked(), getExternalFilesDir(null), StringUi))
     arr.add(StringUi);
   }
  }
@@ -212,12 +210,8 @@ public class Main extends Activity {
     add(uri);
    } else {
     ClipData datas=data.getClipData();
-    int i=datas.getItemCount(),t=0;
-    while (t < i) {
-     uri = datas.getItemAt(t).getUri();
-     add(uri);
-     ++t;
-    }
+    for (int t=0,i=datas.getItemCount();t < i;++t)
+     add(datas.getItemAt(t).getUri());
    }
   }
  }

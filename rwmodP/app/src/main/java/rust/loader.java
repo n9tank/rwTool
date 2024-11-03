@@ -94,7 +94,8 @@ public class loader extends IoWriter implements Callable,Runnable {
      }
     }
     int i=str.length() - 1;
-    if (str.startsWith("[") && str.indexOf(']', 1) == i) {
+	if (i == 0)continue;
+    if (str.charAt(0) == '[' && str.indexOf(']', 1) == i) {
      if (str.startsWith("comment_", 1))last = null;
      else {
       last = str.substring(1, i).trim();
@@ -135,7 +136,7 @@ public class loader extends IoWriter implements Callable,Runnable {
     loader all=null;
     loader[] orr=new loader[0];
     //请不要定义未使用的ini。该版本移除了检查，便于并行
-    String file = getSuperPath(tas instanceof rwlib ?str: src);
+    CharSequence file = getSuperPath(tas instanceof rwlib ?str: src);
     section cp=table.get("core");
     StringBuilder bf=new StringBuilder();
     String str;
@@ -146,19 +147,19 @@ public class loader extends IoWriter implements Callable,Runnable {
      str = (String)m.get("copyFrom");
      if (str != null && str.length() > 0 && !str.equals("IGNORE")) {
       String lrr[]=str.replace('\\', '/').split(",");
-      int i = lrr.length;
-      orr = new loader[i];
-      while (--i >= 0) {
+      int len= lrr.length;
+      orr = new loader[len];
+      for (int i=0;i < len;++i) {
        str = lrr[i].trim();
        loader lod;
        if (!str.startsWith("CORE:")) {
-        String con;
+        CharSequence con;
         if (str.startsWith("ROOT:")) {
          str = str.substring(5);
          con = tas.rootPath;
         } else con = file;
         str = str.replaceFirst("^/+", "");
-        lod = tas.getLoder(con.concat(str));
+        lod = tas.getLoder(con + str);
        } else lod = (loader)rwlib.libMap.get(str.replaceFirst("^CORE:/*", "").toLowerCase());
        orr[i] = lod;
       }
@@ -173,7 +174,7 @@ public class loader extends IoWriter implements Callable,Runnable {
       String fin = bf.toString();
       all = tas.getLoder(fin);
       if (all != null)break;
-      i = fin.lastIndexOf("/", --i);
+      i = fin.lastIndexOf('/', --i);
       if (i < 0)break;
       bf.setLength(i + 1);
      }
@@ -219,14 +220,15 @@ public class loader extends IoWriter implements Callable,Runnable {
   ini = null;
   read = null;
  }
- static String getName(String file) {
+ static CharSequence getName(String file) {
   int len=file.length();
-  int i=file.lastIndexOf("/", len - 1);
-  return file.substring(++i, len);
+  int i=file.lastIndexOf('/', len - 1);
+  if (i < 0)return file;
+  return file.subSequence(++i, len);
  }
- static String getSuperPath(String str) {
+ static CharSequence getSuperPath(String str) {
   int i=str.lastIndexOf('/', str.length() - 2);
-  if (i > 0)return str.substring(0, i + 1);
+  if (i > 0)return str.subSequence(0, i + 1);
   return "";
  }
 }

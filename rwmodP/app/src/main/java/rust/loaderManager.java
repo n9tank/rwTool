@@ -57,11 +57,8 @@ public abstract class loaderManager implements Callable,Canceler {
  }
  public abstract loader getLoder(String str) throws Throwable;
  public static void lod(iniobj ini, loader orr[], loader all) {
-  int i=orr.length;
-  while (--i >= 0) {
-   loader lod=orr[i];
+  for (loader lod:orr)
    ini.put(lod.put, lod);
-  }
   if (all != null)ini.put(all.put, all); 
  }
  public boolean lod(loader ini) {

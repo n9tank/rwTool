@@ -53,7 +53,7 @@ public class savedump implements Runnable {
   return list;
  }
  public static int[] finds(byte arr[], BMFind finds[], int len) {
-  for (int i=finds.length;--i >= 0;) {
+  for (int i=0,size=finds.length;i < size;++i) {
    int j=finds[i].indexOf(arr, 0, len);
    if (j >= 0)return new int[]{i,j};
   }

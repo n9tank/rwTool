@@ -9,13 +9,13 @@ public class loaders implements Comparable {
   if (i != 0)return i;
   loader orr[]=copy;
   loader irr[]=obj.copy;
-  int k=orr.length;
-  i=k-irr.length;
-  if(i!=0)return i;
-  for(;--k>=0;){
-  loader p1=orr[k];
-  loader p2=irr[k];     
-  if (p1==p2)continue;
+  int len=orr.length;
+  i = len - irr.length;
+  if (i != 0)return i;
+  for (int k=0;k < len;++k) {
+   loader p1=orr[k];
+   loader p2=irr[k];     
+   if (p1 == p2)continue;
    i = Integer.compare(p1.hashCode(), p2.hashCode());
    if (i != 0)return i;
    String path=p1.src;

@@ -84,7 +84,7 @@ public class zipunpack implements Runnable {
       InputStream input= zip.getInputStream(en);
       try {
        InputStream io=input;
-       if (raw)io = ZipEntryInput.getRaw(io, en);
+       if (raw)io = ZipEntryInput.getRaw(io);
        int size = ParallelDeflate.readLoop(io, buf);
        if (size <= 0 || (en.getMethod() == ZipEntry.DEFLATED && size <= 2))continue;
        name obj=getName(name, set, str, ran);
