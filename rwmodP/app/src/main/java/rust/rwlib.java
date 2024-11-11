@@ -48,13 +48,9 @@ public class rwlib extends loaderManager implements UIPost {
   tolow(Zipmap);
  }
  public static void gc(loader lod) {
-  lod.gc();
+  lod.ini = null;
   lod.copy = null;
   lod.task = null;
- }
- public void flush(loader ini) throws Exception {
-  ParallelDeflate cre=this.cre;
-  if (cre != null)ini.with(cre, ini.str);
  }
  public void accept(List<Throwable> list) {
   for (loader lod:(Collection<loader>)Zipmap.values())
@@ -83,7 +79,7 @@ public class rwlib extends loaderManager implements UIPost {
    if (ou != null) {
     ZipEntryOutput out = zippack.zip(ou);
     ParallelDeflate cre = new ParallelDeflate(out, true);
-    cre.on = new UiHandler(cre.pool, cre, this, null);
+    cre.on = new UiHandler(cre.pool, cre, this);
     this.cre = cre;
    }
    Enumeration<? extends ZipEntry> ens=zip.entries();

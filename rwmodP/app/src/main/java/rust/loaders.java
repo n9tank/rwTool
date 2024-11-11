@@ -26,13 +26,18 @@ public class loaders implements Comparable {
     i = p1.str.compareTo(p2.str);
     if (i != 0)return i;  
    }
-  } 
-  return 0;   
+  }
+  return ifNullToBlank(all).compareTo(ifNullToBlank(all));
+ }
+ public static String ifNullToBlank(loader all) {
+  return all == null ?"": all.src;
  }
  public loader copy[];
+ public loader all;
  public int hashCode;
- public loaders(loader copy[]) {
-  hashCode = Arrays.hashCode(copy);
+ public loaders(loader copy[], loader all) {
+  this.all = all;
+  hashCode = Arrays.hashCode(copy) * 31 + (all == null ?0: all.hashCode());
   this.copy = copy;
  }
  public int hashCode() {

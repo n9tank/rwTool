@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+	id 'application'
 }
 
 sourceSets {
@@ -11,7 +12,7 @@ sourceSets {
 }
 
 group = "rust.rwTool"
-version = "0.8.6"
+version = "0.9.0"
 description = "rwTool"
 
 java {
@@ -23,9 +24,12 @@ jar {
     manifest {
         attributes 'Main-Class': 'awt.Main'
     }
+   from {
+     configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
 }
 
 dependencies {
 implementation fileTree(dir: "libs", include: ["*.jar"])
-implementation fileTree(dir: "libawt", include: ["*.jar"])
+compileOnly fileTree(dir: "libawt", include: ["*.jar"])
 }

@@ -14,15 +14,34 @@ import java.util.concurrent.Callable;
 import org.libDeflate.InputGet;
 import org.libDeflate.IoWriter;
 import org.libDeflate.ParallelDeflate;
-import org.libDeflate.ZipEntryM;
 import org.libDeflate.ZipUtil;
 import rust.loader;
 import rust.loaders;
 public class loader extends IoWriter implements Callable,Runnable {
+ public static int utf8len(CharSequence str) {
+  int len=str.length() ;
+  return (len << 1) - (len >> 1);
+  //1.5倍容量，最大3倍
+ }
  public void with(ParallelDeflate para, String str) throws Exception {
-  bufSize = 8192;
-  ZipEntryM en=ZipUtil.newEntry(str, 12);
-  para.with(this, en);
+  boolean st=false;
+  int all=0;
+  for (Map.Entry<String, section> ses:(Set<Map.Entry<String,section>>)ini.entrySet()) {
+   HashMap v= ses.getValue().m;
+   if (v.size() > 0) {
+    if (st)all++;
+    st = true;
+    all += utf8len(ses.getKey());
+    all += 2;
+    for (Map.Entry<String,String> en:(Set<Map.Entry>)v.entrySet()) {
+     all += 2;
+     all += utf8len(en.getKey());
+     all += utf8len(en.getValue());
+    }
+   }
+  }
+  bufSize = all;
+  para.with(this, ZipUtil.newEntry(str, 12));
  }
  public void flush() throws Exception {
   BufferedWriter buf=getWriter(StandardCharsets.UTF_8);
@@ -48,7 +67,7 @@ public class loader extends IoWriter implements Callable,Runnable {
   } finally {
    if (task instanceof rwlib)
     rwlib.gc(this);
-   else gc();
+   read = null;
    buf.close();
   }
  }
@@ -70,7 +89,6 @@ public class loader extends IoWriter implements Callable,Runnable {
     boolean skip=fat == '\"';
     boolean c=false;
     bf.setLength(0);
-    tag:
     while (true) {
      int j=0;
      while (j >= 0) {
@@ -93,9 +111,8 @@ public class loader extends IoWriter implements Callable,Runnable {
       break;
      }
     }
-    int i=str.length() - 1;
-	if (i == 0)continue;
-    if (str.charAt(0) == '[' && str.indexOf(']', 1) == i) {
+    int i=str.length();
+    if (str.charAt(0) == '[' && str.indexOf(']', 1) == --i) {
      if (str.startsWith("comment_", 1))last = null;
      else {
       last = str.substring(1, i).trim();
@@ -165,40 +182,43 @@ public class loader extends IoWriter implements Callable,Runnable {
       }
      }
     }
-    if (isini) {
-     bf.setLength(0);
-     bf.append(file);
-     int i=file.length();
-     while (true) {
-      bf.append("all-units.template");
-      String fin = bf.toString();
-      all = tas.getLoder(fin);
-      if (all != null)break;
-      i = fin.lastIndexOf('/', --i);
-      if (i < 0)break;
-      bf.setLength(i + 1);
-     }
-    }
-    copy = new loaders(orr);
-    this.all = all;
+	if (isini) {
+	 bf.setLength(0);
+	 bf.append(file);
+	 int i=file.length();
+	 while (true) {
+	  bf.append("all-units.template");
+	  String fin = bf.toString();
+	  all = tas.getLoder(fin);
+	  if (all != null)break;
+	  i = fin.lastIndexOf('/', --i);
+	  if (i < 0)break;
+	  bf.setLength(i + 1);
+	 }
+	}
+    copy = new loaders(orr, all);
    }
-   loader all=this.all;
+   loaders key=this.copy;
+   loader all=key.all;
    tag2: {
     tag: {
-     loader[] or=copy.copy;
+     loader[] or=key.copy;
      for (loader orr:or)
-      if (!orr.finsh)break tag;
-     if (all != null && !all.finsh)break tag;
-     if (tas.lod(this))break tag2;
+      if (!orr.type)break tag;
+     if (all != null && !all.type)break tag;
+     tas.lod(this);
+	 break tag2;
     }
     if (!ui.iscancel()) {
      UiHandler.ui_pool.execute(this);
      return;
     } else break tagw;
    }
-   finsh = true;
-   if (tas instanceof rwlib)
-    ((rwlib)tas).flush(this);
+   type = true;
+   if (tas instanceof rwlib) {
+	ParallelDeflate cre=tas.cre;
+	if (cre != null)with(cre, str);
+   }
   } catch (Throwable e) {
    ui.onError(e);
   }
@@ -206,20 +226,25 @@ public class loader extends IoWriter implements Callable,Runnable {
   return;
  }
  iniobj put;
- iniobj old;
- volatile loader all;
- volatile boolean finsh;
+ volatile loaders copy;
+ volatile boolean inSet;
+ public boolean inSet() {
+  boolean in=inSet;
+  if (in)return in;
+  synchronized (this) {
+   in = inSet;
+   if (in)return in;
+   inSet = true;
+  }
+  return in;
+ }
+ volatile boolean type;
  boolean isini;
  HashMap ini;
- loaders copy;
  String str;
  String src;
  InputGet read;
  loaderManager task;
- public void gc() {
-  ini = null;
-  read = null;
- }
  static CharSequence getName(String file) {
   int len=file.length();
   int i=file.lastIndexOf('/', len - 1);

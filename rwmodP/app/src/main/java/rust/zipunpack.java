@@ -81,9 +81,8 @@ public class zipunpack implements Runnable {
      if (name.endsWith("\\"))continue;
      if (!raw || en.getCompressedSize() == 0)en.setMethod(0);
      try {
-      InputStream input= zip.getInputStream(en);
+      InputStream io= zip.getInputStream(en);
       try {
-       InputStream io=input;
        if (raw)io = ZipEntryInput.getRaw(io);
        int size = ParallelDeflate.readLoop(io, buf);
        if (size <= 0 || (en.getMethod() == ZipEntry.DEFLATED && size <= 2))continue;
@@ -100,12 +99,12 @@ public class zipunpack implements Runnable {
         int usize=dumpMaxSize - size;
         int i;
         while ((i = ParallelDeflate.readLoop(io, buf)) > 0 && usize > 0) {
-          zipout.write(buf, 0, i);
-          usize -= i;
+         zipout.write(buf, 0, i);
+         usize -= i;
         }
        }
       } finally {
-       input.close();
+       io.close();
       }
      } catch (Throwable e) {
       //忽略的错误
