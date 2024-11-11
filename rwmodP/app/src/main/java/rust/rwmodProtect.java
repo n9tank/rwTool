@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -35,9 +34,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
  HashMap lowmap;
  ConcurrentHashMap resmap;
  ZipEntryOutput out;
- ConcurrentHashMap coeMap;
+ ConcurrentHashMap<loaders,HashMap> oldobj;
  int arr[];
- AtomicInteger adds[];
  String musicPath;
  int musicPut=-1; 
  String oggput; 
@@ -131,56 +129,36 @@ public class rwmodProtect extends loaderManager implements Consumer {
  }
  String safeName(int ini, StringBuilder buff) {
   buff.setLength(0);
-  if (ini < 4) {
-   AtomicInteger add=adds[--ini];
-   int i=((int)add.incrementAndGet() - 1);
-   appendName(i, ini == 2, buff);
-   String ed;
-   switch (ini) {
-	case 1:
-	 ed = ".wav";
-	 break;
-	case 2:
-	 ed = ".ogg";
-	 break;
-	default:
-	 ed = "";
-	 break;
-   }
-   buff.append(ed);
+  int i=arr[--ini]++;
+  //0 copy oly
+  //1 res
+  //2 wav
+  //3 ogg
+  //4 ini
+  //5 music
+  //6 music [noloop]
+  if (ini < 3) {
+   boolean isogg=ini == 2;
+   appendName(i, isogg, buff);
+   if (ini == 1)buff.append(".wav");
+   else if (isogg)buff.append(".ogg");
   } else {
-   int i=arr[ini -= 4]++;
-   if (ini > 0) {  
+   ini -= 3;
+   if (ini > 0) {
     buff.append(oggput);
     buff.append('/');  
     if (ini > 1)buff.append("[noloop]");
-   } 
+   }
    if (ini == 0) {
     appendName(i, false, buff);
     buff.append(".ini");
    } else {
     append(i, buff);
     buff.append(".ogg"); 
-   }    
+   }
   }
-  if (ini == 0)buff.append('/');  
+  if (ini == 0)buff.append('/');
   return buff.toString();
- }
- public boolean lod(loader ini) {
-  //便于改动到并行加载，没多大优化，主要耗时为io流。
-  ConcurrentHashMap coe=coeMap;
-  loaders key=ini.copy;
-  iniobj old=new iniobj();
-  Object obj=coe.putIfAbsent(key, ini);
-  if (obj == null) {
-   lod(old, key.copy, ini.all);
-   coe.put(key, old); 
-  } else if (obj instanceof iniobj) {
-   old.put((iniobj)obj, null);
-  } else return false;
-  ini.old = old;
-  super.lod(ini);
-  return true;
  }
  public void appstr(String str, int last, loader put, StringBuilder buff) {
   String add=put.str;
@@ -194,23 +172,40 @@ public class rwmodProtect extends loaderManager implements Consumer {
   buff.append(add, st, add.length());
   buff.append(',');
  } 
- public static iniobj em=new iniobj();
  public static boolean with(loader copy[], loader all) {
   if (copy != null) {
-   for (loader lod:copy)
-    if (lod.all == all || with(lod.copy.copy, all))
-     return true;
+   for (loader lod:copy) {
+	loaders key=lod.copy;
+    if (key.all == all || with(key.copy, all))
+	 return true;
+   }
   }
   return false;
  }
  void write(loader ini) throws Throwable {
-  loader alls=ini.all;
+  if (!ini.type)return;
+  ini.type = false;
+  loaders copy=ini.copy;
+  HashMap oldsrc=oldobj.get(copy);
+  if (oldsrc == null) {
+   loader all=copy.all;
+   if (all != null) write(all);
+   loader[] list=copy.copy;
+   for (loader lod:list)
+	write(lod);
+   oldsrc = new HashMap();
+   for (int i=list.length;--i >= 0;) {
+	loader lod=list[i];
+	iniobj.put(oldsrc, lod.ini);
+   }
+   if (all != null)iniobj.put(oldsrc, all.ini); 
+   oldobj.put(copy, oldsrc);
+  }
   StringBuilder buff=new StringBuilder();
   StringBuilder bf=new StringBuilder();
   CharSequence file=loader.getSuperPath(ini.src);
-  boolean ws=maxSplit > 0;  
   HashMap map=ini.ini;
-  loaders copy=ini.copy;
+  loader alls=copy.all;
   loader[] orr= copy.copy;
   if (orr.length > 0 || alls != null) {
    section cp=(section)map.get("core");
@@ -229,97 +224,56 @@ public class rwmodProtect extends loaderManager implements Consumer {
    buff.setLength(buff.length() - 1);
    core.put("copyFrom", buff.toString());
   }
-  String str;
   iniobj put=ini.put;
   boolean isini=ini.isini;
-  if (isini)put.as();
   HashMap as=put.put;
-  iniobj old=ini.old;
-  if (old == null)old = em;
-  HashMap oldsrc=old.put;
   for (Map.Entry<String,section>en:(Set<Map.Entry<String,section>>)as.entrySet()) {
    String ac=en.getKey();
    section cpys=en.getValue();
    HashMap asmap = cpys.m;
-   section asold=(section)oldsrc.get(ac);
-   HashMap oldmap;
-   HashMap lastcoe;
-   if (asold != null) {
-    oldmap = asold.m;
-    lastcoe = asold.coe;
-   } else {
-    oldmap = null;
-    lastcoe = null;
-   }
+   HashMap ascopy=cpys.copy;
+   section asold=oldsrc == null ?null: (section)oldsrc.get(ac);
+   HashMap oldmap=asold == null ?null: asold.m;
    section licp=(section)map.get(ac);
    HashMap list=licp == null ?null: licp.m;
    for (Map.Entry<String,String> en2:(Set<Map.Entry<String,String>>)asmap.entrySet()) {
     String key=en2.getKey();
     if (!"@copyFrom_skipThisSection".equals(key)) {
      String value=en2.getValue();
-     boolean eq= oldmap != null && value.equals(oldmap.get(key)); 
+	 String oldPath=null;
+	 boolean eq= oldmap != null && value.equals(oldPath = (String)oldmap.get(key)); 
      HashMap<String, Integer> res=rwmodProtect.Res;
      Object o=res.get(key);
      if (o != null) {
       int type = (Integer)o;
-      String next=isini ?value: put.get(value, ac, cpys, buff);
+      String next=isini ? put.get(value, ac, cpys, buff): value;
       if (next != null) {
-       String[] nowlist=AllPath(next, file, type, buff);
 	   boolean same;
+	   boolean iscopy;
+	   String path=AllPath(next, file, type, buff, bf);
 	   if (isini) {
 		same = value.equals(next);
-		CharSequence coe;
-		eq &= same && (lastcoe != null && (coe = (CharSequence)lastcoe.get(key)) != null && Arrays.equals(nowlist, AllPath(next , coe, type, buff)));
+		iscopy = ascopy == null ?false: value.equals(ascopy.get(key));
+		eq &= same;
 	   } else {
 		same = true;
+		iscopy = false;
 		eq |= iniobj.withDefine(value);
+		//这可能引起重排序
 	   }
        //补修宏绕过
-       if (!same || !eq) {
+       if (!same || (!eq && !path.equals(oldPath) && (oldPath != null || !iscopy))) {
         if (list == null) {
          section cp=new section();
          cp.m = list = new HashMap();
          map.put(ac, cp);
         }
-        char c=0;
-        if (type == 0)c = '*';
-        else if (type > 0)c = ':';
-        if (nowlist != null) {
-         buff.setLength(0);
-         for (String add:nowlist) {
-          int st=ResTry(add, type <= 0, buff);
-          if (st >= 0) {
-           int i = 0;
-           if (c != 0)i = add.lastIndexOf(c);
-           if (i <= 0)i = add.length();
-           if (ws)buff.append("ROOT:");
-           str = add.substring(st, i);
-           ZipEntry ze = toPath(str);
-           if (ze != null) {
-            String name=ze.getName();
-			Object obj;
-			do{
-			 obj = resmap.putIfAbsent(name, "");
-			}while(obj == "");
-			if (obj == null) {
-			 resmap.put(name, str = safeName(getType(name), bf));
-			 ZipEntryM outen=ZipUtil.newEntry(str, type <= 0 ?0: 12);
-             zippack.writeOrCopy(cre, Zip, ze, outen, raw);
-            } else str = (String)obj;
-		   }
-		   buff.append(str);
-		   if (i > 0)buff.append(add, i, add.length());
-		  } else buff.append(add);
-		  buff.append(',');
-		 }
-		 buff.setLength(buff.length() - 1);
-		 value = buff.toString();
-		}
-		list.put(key, value);
+		list.put(key, path);
 	   }
 	  }
 	 }
 	 if (list != null && eq)list.remove(key);
+	 //这里不能直接删除复制的重复键，因为@copyFromSection允许动态变化
 	}}}
   ini.with(cre, ini.str);
  }
@@ -340,22 +294,40 @@ public class rwmodProtect extends loaderManager implements Consumer {
   }
   return st;
  }
- String[] AllPath(String str, CharSequence path, int type, StringBuilder buff) {
+ void addRealPath(String add, int type, StringBuilder buff, StringBuilder bf) throws Throwable {
+  int i = 0;
+  char c=0;
+  if (type == 0)c = '*';
+  else if (type > 0)c = ':';
+  if (c != 0)i = add.lastIndexOf(c);
+  if (i <= 0)i = add.length();
+  if (maxSplit > 0)buff.append("ROOT:");
+  String str = add.substring(0, i);
+  ZipEntry ze = toPath(str);
+  if (ze != null) {
+   String name=ze.getName();
+   Object obj = resmap.get(name);
+   if (obj == null) {
+	resmap.put(name, str = safeName(getType(name), bf));
+	ZipEntryM outen=ZipUtil.newEntry(str, type <= 0 ?0: 12);
+	zippack.writeOrCopy(cre, Zip, ze, outen, raw);
+   } else str = (String)obj;
+  }
+  buff.append(str);
+  if (i > 0)buff.append(add, i, add.length());
+ }
+ String AllPath(String str, CharSequence path, int type, StringBuilder buff, StringBuilder bf) throws Throwable {
   //不予修复非法auto图像
   if (str.length() == 0 || str.equalsIgnoreCase("none") || str.equals("IGNORE") || str.equalsIgnoreCase("auto"))
-   return null;
+   return str;
   str = str.replace('\\', '/');
   buff.setLength(0);
-  boolean ru=false;
   String list[] = type < 0 ?new String[]{str}: str.split(",");
   int l=list.length,m=0;
   do {
-   buff.setLength(0);
    str = list[m].trim();
    int st=ResTry(str, type <= 0, buff);
-   boolean tag=st >= 0;
-   ru = ru || tag;
-   if (tag) {
+   if (st >= 0) {
     if (str.startsWith("ROOT:", st)) {
      st += 5;
      path = rootPath;
@@ -369,14 +341,20 @@ public class rwmodProtect extends loaderManager implements Consumer {
     }
     if (st != 0)str = str.substring(st);
     str = str.replaceFirst("^/+", "");
+	st = buff.length();
     buff.append(path);
    }
    buff.append(str);
-   list[m] = path(buff.toString());
    //注意不要使用/./这种路径
+   if (st >= 0) {
+	String add=buff.substring(st);
+	buff.setLength(st);
+	addRealPath(path(add), type, buff, bf);
+   }
+   buff.append(',');
   }while(++m < l);
-  if (!ru)list = null;
-  return list;
+  buff.setLength(buff.length() - 1);
+  return buff.toString();
  }
  int getType(String file) {
   int i=file.length() - 4;
@@ -399,40 +377,35 @@ public class rwmodProtect extends loaderManager implements Consumer {
   }
   return 1;
  }
- volatile boolean is;
- public void accept(Object o) {
-  if (!is) {
-   try {
-	write((loader)o);
-   } catch (Throwable e) {
-	is = true;
-	uih.onError(e);
-   }
-  }
+ public void accept(Object obj) {
+  loader lod=(loader)obj;
+  if (lod.isini)lod.put.as();
  }
  public void end() {
   List vl=Arrays.asList(Zipmap.values().toArray());
+  vl.parallelStream().forEach(this);
   Collections.shuffle(vl);
   StringBuilder bf=new StringBuilder();
   for (Object obj:vl) {
    loader lod=(loader)obj;
    lod.str = safeName(lod.isini ?4: 1, bf);
-  }   
-  vl.parallelStream().forEach(this);
+  }
+  try {
+   for (Object obj:vl)
+	write((loader)obj);
+  } catch (Throwable e) {
+   uih.onError(e);
+  }
   try {
    cre.close();
   } catch (IOException e) {}
  }
  public Object call() {
+  oldobj = new ConcurrentHashMap();
   resmap = new ConcurrentHashMap();
-  AtomicInteger[] add=new AtomicInteger[3];
-  for (int i=0;i < add.length;i++)
-   add[i] = new AtomicInteger();
-  adds = add;
-  arr = new int[4];
+  arr = new int[7];
   HashMap lows=new HashMap();
   lowmap = lows;
-  coeMap = new ConcurrentHashMap();
   StringBuilder mbuff = new StringBuilder();
   try {
    ZipFile zip=new ZipFile(In);

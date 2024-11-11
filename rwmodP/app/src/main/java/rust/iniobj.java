@@ -13,7 +13,6 @@ import java.util.Arrays;
 public class iniobj {
  public HashMap put;
  public HashMap gl;
- public loader all;
  public iniobj() {
   put = new HashMap();
  }
@@ -26,23 +25,11 @@ public class iniobj {
   }
   return put;
  }
- public iniobj(HashMap map, loader putini) {
-  CharSequence path=loader.getSuperPath(putini.src);
+ public iniobj(HashMap map) {
   put = map;
-  for (section cpy:(Collection<section>)map.values()) {
-   HashMap m=cpy.m;
-   HashMap coe;
-   cpy.coe = coe = new HashMap();
-   for (Map.Entry<String,String> en:(Set<Map.Entry<String,String>>)m.entrySet()) {
-    String key= en.getKey();
-    if (rwmodProtect.Res.containsKey(key))coe.put(key, path);
-   }
-  }
  }
- public void put(iniobj drc, loader putini) {
-  CharSequence path=putini == null ?null: loader.getSuperPath(putini.src);
-  HashMap src=put;
-  for (Map.Entry<String,section>en:(Set<Map.Entry>)drc.put.entrySet()) {
+ public static void put(HashMap src, HashMap drc) {
+  for (Map.Entry<String,section>en:(Set<Map.Entry>)drc.entrySet()) {
    String ac=en.getKey();
    HashMap list=null;
    section cpy = (section)src.get(ac);
@@ -57,47 +44,49 @@ public class iniobj {
    if (!has) {
     section cp = en.getValue();
     HashMap listdrc=cp.m;
-    HashMap cpcoe=cp.coe;
-    HashMap coe=cpy.coe;
-    if (list == null) {
-     cpy.m = (HashMap)listdrc.clone();
-     if (path == null && cpcoe != null) {
-      coe = (HashMap)cpcoe.clone();
-      cpcoe = null;
-     } else coe = new HashMap();
-     cpy.coe = coe ;
-    } else {
-     coe.putAll(new MapResize(listdrc));   
-     for (Map.Entry en2:(Set<Map.Entry>)listdrc.entrySet())
+    if (list == null)cpy.m = (HashMap)listdrc.clone();
+    else {
+	 list.putAll(new MapResize(listdrc));   
+	 for (Map.Entry en2:(Set<Map.Entry>)listdrc.entrySet())
       list.putIfAbsent(en2.getKey(), en2.getValue());
     }
-    if (cpcoe != null) {
-     coe.putAll(new MapResize(cpcoe));     
-     if (path != null) {
-      for (Object s:(Set)cpcoe.keySet())
-       coe.putIfAbsent(s, path);
-     } else {
-      for (Map.Entry s:(Set<Map.Entry>)cpcoe.entrySet())
-       coe.putIfAbsent(s.getKey(), s.getValue());
-     }
-    }}
+   }
   }
+ }	
+ public void put(iniobj drc) {
+  put(put, drc.put);
  }
  void asFor(section cpy, String key) {
   HashMap map=put;
   HashMap hash=cpy.m;
   String str = (String)hash.remove("@copyFromSection");
   if (str != null && !str.equals("IGNORE")) {
-   HashMap mapput = (HashMap)hash.clone();
-   cpy.m = mapput;
    String list[]=str.split(",");
-   for (String vl:list) {
-    vl = vl.trim();
-    section set=(section)map.get(vl);
-    if (set != null) {
+   int i=list.length;
+   HashMap copy=null;
+   if (i == 1) {
+	String vl=list[0].trim();
+	section set=(section)map.get(vl);
+	if (set != null) {
 	 asFor(set, vl);
-	 mapput.putAll(set.m);
-    }
+	 copy = set.m;
+	}
+   } else {
+	copy = new HashMap();
+	for (String vl:list) {
+	 vl = vl.trim();
+	 section set=(section)map.get(vl);
+	 if (set != null) {
+	  asFor(set, vl);
+	  copy.putAll(set.m);
+	 }
+	}
+   }
+   if (copy != null) {
+	cpy.copy = copy;
+	hash.putAll(new MapResize(copy));
+	for (Map.Entry en:(Set<Map.Entry>)copy.entrySet())
+	 hash.putIfAbsent(en.getKey(), en.getValue());
    }
   }
  }

@@ -1,7 +1,6 @@
 package rust;
 import java.util.HashMap;
-import java.util.ArrayList;
-class section {
+public class section {
  HashMap m;
- HashMap coe;
+ HashMap copy;
 }

@@ -11,7 +11,6 @@ import org.libDeflate.UIPost;
 import org.libDeflate.ZipInputGet;
 import rust.iniobj;
 import rust.loader;
-import rust.loaders;
 
 public abstract class loaderManager implements Callable,Canceler {
  String rootPath;
@@ -57,21 +56,17 @@ public abstract class loaderManager implements Callable,Canceler {
  }
  public abstract loader getLoder(String str) throws Throwable;
  public static void lod(iniobj ini, loader orr[], loader all) {
-  for (loader lod:orr)
-   ini.put(lod.put, lod);
-  if (all != null)ini.put(all.put, all); 
+  for (int i=orr.length;--i >= 0;) {
+   loader lod=orr[i];
+   ini.put(lod.put);
+  }
+  if (all != null)ini.put(all.put); 
  }
- public boolean lod(loader ini) {
+ public void lod(loader ini) {
   HashMap map=ini.ini;
   if (Ou != null)map = iniobj.clone(map);
-  iniobj obj= new iniobj(map, ini);
+  iniobj obj= new iniobj(map);
   ini.put = obj;
-  iniobj old=ini.old;
-  loaders key=ini.copy;
-  loader[] orr=key.copy;
-  if (old == null) {
-   lod(obj, orr, null);
-  } else obj.put(old, null);
-  return true;
+  lod(obj, ini.copy.copy, null);
  }
 }

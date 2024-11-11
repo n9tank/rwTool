@@ -10,6 +10,7 @@
 
 ## 兼容性问题
 * all-units.template<br>（移除兼容）当复制另一个.ini并指于自己向不同的all-units.template时出错<br>all-units.template优先于copyFrom。使用copyFrom复制ini，不会被追加ini持有的all-units.template。
+* 请避免使用all-units.template。诺要完全兼容all-units.template，将会大幅降低混淆效果。复制多个目标的all-units.template相同，会有格外的性能代价，除此之外这可能引起未跳过节，这是因为插入循序导致的。
 * @copyFrom_skipThisSection<br>（移除兼容）此值不能为 false,0,IGNORE。<br>@copyFrom_skipThisSection定义为false或0时拿回之前的所有键，反之丢弃。
 * 不规范的持有<br>持有 mod-info.txt、auto、..、. 等特殊名称等文件，还有背景音乐，地图和地图图像，使打包出错或造成多次复制，以及被修改的键。
 * 非法路径<br>使用"/"或"\\"作为路径头或尾部，以及连续使用这都是不支持的。
