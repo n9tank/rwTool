@@ -211,6 +211,17 @@ public class loader extends IoWriter implements Callable,Runnable {
  }
  iniobj put;
  volatile loaders copy;
+ volatile boolean inSet;
+ public boolean inSet() {
+  boolean in=inSet;
+  if (in)return in;
+  synchronized (this) {
+   in = inSet;
+   if (in)return in;
+   inSet = true;
+  }
+  return in;
+ }
  volatile boolean type;
  boolean isini;
  HashMap ini;

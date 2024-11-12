@@ -40,3 +40,4 @@
 - dumpMax 在解压时超过该长度中断条目。
 
 # [构建](BUILD.MD)
+- [下载](https://gitee.com/n9tank/rwTool/releases)

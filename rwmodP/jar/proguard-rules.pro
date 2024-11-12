@@ -25,3 +25,6 @@
 #-dontwarn net.**
 #-keepattributes LineNumberTable
 #-keep class rust.**{*;}
+-keep public class awt.Main{
+public static void main(java.lang.String[]);
+}

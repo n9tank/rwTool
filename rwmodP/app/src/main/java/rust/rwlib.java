@@ -79,7 +79,7 @@ public class rwlib extends loaderManager implements UIPost {
    if (ou != null) {
     ZipEntryOutput out = zippack.zip(ou);
     ParallelDeflate cre = new ParallelDeflate(out, true);
-    cre.on = new UiHandler(cre.pool, cre, this, null);
+    cre.on = new UiHandler(cre.pool, cre, this);
     this.cre = cre;
    }
    Enumeration<? extends ZipEntry> ens=zip.entries();

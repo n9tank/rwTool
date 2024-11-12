@@ -81,7 +81,7 @@ jar程序不支持直接导入AAR，你需要依赖库jar导入在libs。
 
 ### 编译
 
-./gradlew jar:assembleRelease
+./gradlew jar:jar
 
 ### 打包所有文件
 

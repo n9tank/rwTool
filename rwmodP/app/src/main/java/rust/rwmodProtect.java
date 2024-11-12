@@ -16,9 +16,12 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import org.libDeflate.Canceler;
+import org.libDeflate.ErrorHandler;
 import org.libDeflate.ParallelDeflate;
 import org.libDeflate.UIPost;
 import org.libDeflate.ZipEntryM;
@@ -36,6 +39,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
  ZipEntryOutput out;
  ConcurrentHashMap<loaders,HashMap> oldobj;
  int arr[];
+ AtomicInteger safeInt[];
  String musicPath;
  int musicPut=-1; 
  String oggput; 
@@ -129,7 +133,6 @@ public class rwmodProtect extends loaderManager implements Consumer {
  }
  String safeName(int ini, StringBuilder buff) {
   buff.setLength(0);
-  int i=arr[--ini]++;
   //0 copy oly
   //1 res
   //2 wav
@@ -137,13 +140,14 @@ public class rwmodProtect extends loaderManager implements Consumer {
   //4 ini
   //5 music
   //6 music [noloop]
-  if (ini < 3) {
+  if (ini < 4) {
+   int i=safeInt[--ini].incrementAndGet() - 1;
    boolean isogg=ini == 2;
    appendName(i, isogg, buff);
    if (ini == 1)buff.append(".wav");
    else if (isogg)buff.append(".ogg");
   } else {
-   ini -= 3;
+   int i=arr[ini -= 4]++;
    if (ini > 0) {
     buff.append(oggput);
     buff.append('/');  
@@ -182,17 +186,23 @@ public class rwmodProtect extends loaderManager implements Consumer {
   }
   return false;
  }
- void write(loader ini) throws Throwable {
-  if (!ini.type)return;
-  ini.type = false;
+ UiHandler asyncOut;
+ public boolean asyncAdd(loader lod) throws IOException {
+  boolean ok=!lod.type;
+  if (ok || lod.inSet())return ok;
+  new iniTask(this, lod, asyncOut);
+  return ok;
+ }
+ boolean write(loader ini) throws Throwable {
   loaders copy=ini.copy;
   HashMap oldsrc=oldobj.get(copy);
   if (oldsrc == null) {
+   boolean ru=true;
    loader all=copy.all;
-   if (all != null) write(all);
+   if (all != null)ru &= asyncAdd(all);
    loader[] list=copy.copy;
-   for (loader lod:list)
-	write(lod);
+   for (loader lod:list)ru &= asyncAdd(lod);
+   if (!ru)return false;
    oldsrc = new HashMap();
    for (int i=list.length;--i >= 0;) {
 	loader lod=list[i];
@@ -276,6 +286,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
 	 //这里不能直接删除复制的重复键，因为@copyFromSection允许动态变化
 	}}}
   ini.with(cre, ini.str);
+  ini.type = false;
+  return true;
  }
  static int ResTry(String file, boolean isimg, StringBuilder buff) {
   int st=0;
@@ -306,12 +318,17 @@ public class rwmodProtect extends loaderManager implements Consumer {
   ZipEntry ze = toPath(str);
   if (ze != null) {
    String name=ze.getName();
-   Object obj = resmap.get(name);
+   Object obj = resmap.put(name, "");
    if (obj == null) {
 	resmap.put(name, str = safeName(getType(name), bf));
 	ZipEntryM outen=ZipUtil.newEntry(str, type <= 0 ?0: 12);
 	zippack.writeOrCopy(cre, Zip, ze, outen, raw);
-   } else str = (String)obj;
+   } else {
+	while (obj == "")
+	 obj = resmap.get(name);
+	//CSA自旋 
+	str = (String)obj;
+   }
   }
   buff.append(str);
   if (i > 0)buff.append(add, i, add.length());
@@ -390,20 +407,32 @@ public class rwmodProtect extends loaderManager implements Consumer {
    loader lod=(loader)obj;
    lod.str = safeName(lod.isini ?4: 1, bf);
   }
+  final UiHandler err = new UiHandler(UiHandler.ui_pool, null, back);
+  err.can = new Canceler(){
+   public void cancel() {
+	err.cancel();
+	rwmodProtect.this.cancel();
+   }
+   public void end() {
+	UiHandler.close(cre);
+   }
+  };
+  asyncOut = err;
   try {
    for (Object obj:vl)
-	write((loader)obj);
-  } catch (Throwable e) {
-   uih.onError(e);
+	asyncAdd((loader)obj);
+  } catch (Exception e) {
   }
-  try {
-   cre.close();
-  } catch (IOException e) {}
+  err.pop();
  }
  public Object call() {
   oldobj = new ConcurrentHashMap();
   resmap = new ConcurrentHashMap();
-  arr = new int[7];
+  arr = new int[3];
+  AtomicInteger ato[]=new AtomicInteger[3];
+  safeInt = ato;
+  for (int i=0;i < ato.length;++i)
+   ato[i] = new AtomicInteger();
   HashMap lows=new HashMap();
   lowmap = lows;
   StringBuilder mbuff = new StringBuilder();
