@@ -91,24 +91,8 @@ public class iniobj {
   }
  }
  public void as() {
-  HashMap gl=new HashMap();
-  this.gl = gl;
-  HashMap map=put;
-  for (section cpy:(Collection<section>)map.values()) {
-   Iterator<Map.Entry<String,String>> ite2=cpy.m.entrySet().iterator();
-   while (ite2.hasNext()) {
-    Map.Entry<String,String> en2=ite2.next();
-    String key=en2.getKey();
-    if (key.startsWith("@global ")) {
-     String value=en2.getValue();
-     if (!value.equals("IGNORE")) {
-      gl.put(key.substring(8), value);
-      ite2.remove();
-     }
-    }
-   }
-  }
-  Set<Map.Entry> se=(Set<Map.Entry>)map.entrySet();
+  globalMap();
+  Set<Map.Entry> se=(Set<Map.Entry>)put.entrySet();
   for (Map.Entry<String,Object> en2:se)
    asFor((section)en2.getValue(), en2.getKey());
  }
@@ -123,11 +107,38 @@ public class iniobj {
  }
  static final Pattern find=Pattern.compile("[a-zA-Z_][0-9a-zA-Z_.]*");
  static final Pattern mathExp=Pattern.compile("[-+/*^%()]");
- public static boolean withDefine(String str) {
-  int i=str.indexOf("${");
-  if (i < 0)return false;
-  str.indexOf('}', i + 2);
-  return i >= 0;
+ public static String copyValue(HashMap<String,section> ini, String list, String k) {
+  if (list != null && ! list.equals("IGNORE")) {
+   String keys[]=list.split(",");
+   for (int i=keys.length;--i >= 0;) {
+	section kvs= ini.get(keys[i].trim());
+	if (kvs == null)continue;
+	HashMap<String,String> kvmap=kvs.m;
+	String obj=kvmap.get(k);
+	if (obj != null)return obj;
+	if ((obj = copyValue(ini, kvmap.get("@copyFromSection"), k)) != null)
+	 return obj;
+   }
+  }
+  return null;
+ }
+ public void globalMap() {
+  HashMap gl=new HashMap();
+  this.gl = gl;
+  for (section cpy:(Collection<section>)put.values()) {
+   Iterator<Map.Entry<String,String>> ite2=cpy.m.entrySet().iterator();
+   while (ite2.hasNext()) {
+    Map.Entry<String,String> en2=ite2.next();
+    String key=en2.getKey();
+    if (key.startsWith("@global ")) {
+     String value=en2.getValue();
+     if (!value.equals("IGNORE")) {
+      gl.put(key.substring(8), value);
+      ite2.remove();
+     }
+    }
+   }
+  }
  }
  String get(String str, String eqz, section cpy, StringBuilder buff) {
   buff.setLength(0);

@@ -235,7 +235,6 @@ public class rwmodProtect extends loaderManager implements Consumer {
    core.put("copyFrom", buff.toString());
   }
   iniobj put=ini.put;
-  boolean isini=ini.isini;
   HashMap as=put.put;
   for (Map.Entry<String,section>en:(Set<Map.Entry<String,section>>)as.entrySet()) {
    String ac=en.getKey();
@@ -256,23 +255,12 @@ public class rwmodProtect extends loaderManager implements Consumer {
      Object o=res.get(key);
      if (o != null) {
       int type = (Integer)o;
-      String next=isini ? put.get(value, ac, cpys, buff): value;
+      String next=put.get(value, ac, cpys, buff);
       if (next != null) {
-	   boolean same;
-	   boolean iscopy;
 	   String path=AllPath(next, file, type, buff, bf);
-	   if (isini) {
-		same = value.equals(next);
-		iscopy = ascopy == null ?false: value.equals(ascopy.get(key));
-		eq &= same;
-	   } else {
-		same = true;
-		iscopy = false;
-		eq |= iniobj.withDefine(value);
-		//这可能引起重排序
-	   }
-       //补修宏绕过
-       if (!same || (!eq && !path.equals(oldPath) && (oldPath != null || !iscopy))) {
+       if (!(eq || path.equals(oldPath)) &&
+		   (oldPath != null || (!value.equals(next) && !path.equals(iniobj.copyValue(oldmap, (String)oldmap.get("@copyFromSection"), key))
+		   || (ascopy == null || !value.equals(ascopy.get(key)))))) {
         if (list == null) {
          section cp=new section();
          cp.m = list = new HashMap();
@@ -280,7 +268,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
         }
 		list.put(key, path);
 	   }
-	  }
+	   eq = false;
+	  } else eq = true;
 	 }
 	 if (list != null && eq)list.remove(key);
 	 //这里不能直接删除复制的重复键，因为@copyFromSection允许动态变化
@@ -396,7 +385,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
  }
  public void accept(Object obj) {
   loader lod=(loader)obj;
-  if (lod.isini)lod.put.as();
+  lod.put.as();
  }
  public void end() {
   List vl=Arrays.asList(Zipmap.values().toArray());
