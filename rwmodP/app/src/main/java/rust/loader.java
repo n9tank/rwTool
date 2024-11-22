@@ -199,8 +199,7 @@ public class loader extends IoWriter implements Callable,Runnable {
    }
    type = true;
    if (tas instanceof rwlib) {
-    rwlib lib=((rwlib)tas);
-	ParallelDeflate cre=lib.cre;
+	ParallelDeflate cre=tas.cre;
 	if (cre != null)with(cre, str);
    }
   } catch (Throwable e) {
@@ -210,7 +209,7 @@ public class loader extends IoWriter implements Callable,Runnable {
   return;
  }
  iniobj put;
- loaders copy;
+ volatile loaders copy;
  volatile boolean inSet;
  public boolean inSet() {
   boolean in=inSet;

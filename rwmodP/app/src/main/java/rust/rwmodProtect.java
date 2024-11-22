@@ -37,7 +37,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
  HashMap lowmap;
  ConcurrentHashMap resmap;
  ZipEntryOutput out;
- ConcurrentHashMap<loaders,HashMap> oldobj;
+ ConcurrentHashMap oldobj;
  int arr[];
  AtomicInteger safeInt[];
  String musicPath;
@@ -195,7 +195,10 @@ public class rwmodProtect extends loaderManager implements Consumer {
  }
  boolean write(loader ini) throws Throwable {
   loaders copy=ini.copy;
-  HashMap oldsrc=oldobj.get(copy);
+  Object objtype=oldobj.get(copy);
+  if (objtype instanceof loader)return false;
+  HashMap oldsrc=(HashMap)objtype;
+  tag:
   if (oldsrc == null) {
    boolean ru=true;
    loader all=copy.all;
@@ -203,13 +206,25 @@ public class rwmodProtect extends loaderManager implements Consumer {
    loader[] list=copy.copy;
    for (loader lod:list)ru &= asyncAdd(lod);
    if (!ru)return false;
-   oldsrc = new HashMap();
-   for (int i=list.length;--i >= 0;) {
-	loader lod=list[i];
-	iniobj.put(oldsrc, lod.ini);
+   int i;
+   if ((i = list.length + (all == null ?0: 1)) <= 1) {
+    if (i <= 0)break tag;
+    oldsrc = (all == null ?list[0]: all).ini;
+    break tag;
    }
-   if (all != null)iniobj.put(oldsrc, all.ini); 
-   oldobj.put(copy, oldsrc);
+   Object obj=oldobj.putIfAbsent(copy, ini);
+   if (obj != null) {
+    if (obj instanceof loader)return false;
+    oldsrc = (HashMap)obj;
+   } else {
+    oldsrc = new HashMap();
+    for (i = list.length;--i >= 0;) {
+     loader lod=list[i];
+     iniobj.put(oldsrc, lod.ini);
+    }
+    if (all != null)iniobj.put(oldsrc, all.ini); 
+    oldobj.put(copy, oldsrc);
+   }
   }
   StringBuilder buff=new StringBuilder();
   StringBuilder bf=new StringBuilder();

@@ -27,6 +27,6 @@ dependencyResolutionManagement {
 rootProject.name = "My Application"
 
 include(":apk")
-//include(":lib")
+include(":lib")
 //include(":jar")
 
