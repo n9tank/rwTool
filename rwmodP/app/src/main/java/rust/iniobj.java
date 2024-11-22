@@ -13,6 +13,7 @@ import java.util.Arrays;
 public class iniobj {
  public HashMap put;
  public HashMap gl;
+ public HashMap ascache;
  public iniobj() {
   put = new HashMap();
  }
@@ -72,15 +73,22 @@ public class iniobj {
 	 copy = set.m;
 	}
    } else {
-	copy = new HashMap();
-	for (String vl:list) {
-	 vl = vl.trim();
-	 section set=(section)map.get(vl);
-	 if (set != null) {
-	  asFor(set, vl);
-	  copy.putAll(set.m);
-	 }
-	}
+    i = 0;
+    for (int len=list.length;i < len;++i)
+     list[i] = list[i].trim();
+    Strings strs=new Strings(list);
+    copy = (HashMap)ascache.get(strs);
+    if (copy == null) {
+     copy = new HashMap();
+     for (String vl:list) {
+      section set=(section)map.get(vl);
+      if (set != null) {
+       asFor(set, vl);
+       copy.putAll(set.m);
+      }
+     }
+     ascache.put(strs, copy);
+    }
    }
    if (copy != null) {
 	cpy.copy = copy;
@@ -92,9 +100,11 @@ public class iniobj {
  }
  public void as() {
   globalMap();
+  ascache = new HashMap();
   Set<Map.Entry> se=(Set<Map.Entry>)put.entrySet();
   for (Map.Entry<String,Object> en2:se)
    asFor((section)en2.getValue(), en2.getKey());
+  ascache = null;
  }
  static final HashSet set;
  static{

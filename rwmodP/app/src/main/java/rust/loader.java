@@ -210,7 +210,7 @@ public class loader extends IoWriter implements Callable,Runnable {
   return;
  }
  iniobj put;
- loaders copy;
+ volatile loaders copy;
  volatile boolean inSet;
  public boolean inSet() {
   boolean in=inSet;
