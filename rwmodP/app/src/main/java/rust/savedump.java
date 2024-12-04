@@ -82,7 +82,7 @@ public class savedump implements Runnable {
     if (i > 0) {
      buff.reset();
      buff.skip(--i);
-     GZIPInputStream gz=new GZIPInputStream(buff, 8192);
+     GZIPInputStream gz=new GZIPInputStream(buff, 1024);
      try {
       int l;
       int off=0;

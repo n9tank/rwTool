@@ -14,15 +14,34 @@ import java.util.concurrent.Callable;
 import org.libDeflate.InputGet;
 import org.libDeflate.IoWriter;
 import org.libDeflate.ParallelDeflate;
-import org.libDeflate.ZipEntryM;
 import org.libDeflate.ZipUtil;
 import rust.loader;
 import rust.loaders;
 public class loader extends IoWriter implements Callable,Runnable {
+ public static int utf8len(CharSequence str) {
+  int len=str.length() ;
+  return (len << 1) - (len >> 1);
+  //1.5倍容量，最大3倍
+ }
  public void with(ParallelDeflate para, String str) throws Exception {
-  bufSize = 8192;
-  ZipEntryM en=ZipUtil.newEntry(str, 12);
-  para.with(this, en);
+  boolean st=false;
+  int all=0;
+  for (Map.Entry<String, section> ses:(Set<Map.Entry<String,section>>)ini.entrySet()) {
+   HashMap v= ses.getValue().m;
+   if (v.size() > 0) {
+    if (st)all++;
+    st = true;
+    all += utf8len(ses.getKey());
+    all += 2;
+    for (Map.Entry<String,String> en:(Set<Map.Entry>)v.entrySet()) {
+     all += 2;
+     all += utf8len(en.getKey());
+     all += utf8len(en.getValue());
+    }
+   }
+  }
+  bufSize = all;
+  para.with(this, ZipUtil.newEntry(str, 12));
  }
  public void flush() throws Exception {
   BufferedWriter buf=getWriter(StandardCharsets.UTF_8);
