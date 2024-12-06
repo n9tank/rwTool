@@ -25,14 +25,12 @@ public class savedump implements Runnable {
   Charset.forName("UTF-32BE"),
   Charset.forName("UTF-32LE")};
  static byte[][] bom=new byte[][]{
-  new byte[0]
-  ,new byte[]{(byte)0xfe,(byte)0xff},
-  new byte[]{(byte)0xff,(byte)0xfe},
   new byte[]{(byte)0,(byte)0,(byte)0xfe,(byte)0xff},
   new byte[]{(byte)0xff,(byte)0xfe,(byte)0,(byte)0},
  };
- static BMFind[] xml_finds=bmfind("xml");
- static BMFind[] map_finds=bmfind("<map");
+ static BMFind[] xml_finds=bmfind("xml", bom);
+ static BMFind[] map_finds=bmfind("<map", null);
+ static BMFind[] map_end=bmfind("/map", null);
  public static byte[][] getBytes(String str) throws UnsupportedEncodingException {
   int l=sets.length;
   byte[][] brr=new byte[l][];
@@ -45,18 +43,44 @@ public class savedump implements Runnable {
   ou = o;
   ui = u;
  }
- public static BMFind[] bmfind(String str) {
+ public static BMFind[] bmfind(String str, byte end[][]) {
   int len=sets.length;
+  int endlen=0;
+  if (end != null) {
+   endlen = end.length;
+   len -= endlen;
+  }
   BMFind[] list=new BMFind[len];
-  for (;--len >= 0;)
-   list[len] = new BMFind(str.getBytes(sets[len]));
+  for (int i=0;i < len;++i)
+   list[i] = new BMFind(str.getBytes(sets[i]));
+  for (int i=0;len < endlen;++len,++i)
+   list[len] = new BMFind(end[i]);
   return list;
  }
- public static int[] finds(byte arr[], BMFind finds[], int len) {
+ public static int[] findsMin(byte arr[], BMFind finds[], int len) {
+  int k=Integer.MAX_VALUE,v=-1;
   for (int i=0,size=finds.length;i < size;++i) {
    int j=finds[i].indexOf(arr, 0, len);
-   if (j >= 0)return new int[]{i,j};
+   if (j < k) {
+    k = j;
+    v = i;
+   }
   }
+  if (v >= 0)
+   return new int[]{v,k};
+  return null;
+ }
+ public static int[] findsMax(byte arr[], BMFind finds[], int len) {
+  int k=-1,v=-1;
+  for (int i=0,size=finds.length;i < size;++i) {
+   int j=finds[i].indexOf(arr, 0, len);
+   if (j > k) {
+    k = j;
+    v = i;
+   }
+  }
+  if (v >= 0)
+   return new int[]{v,k};
   return null;
  }
  public static int readLoop(InputStream in, byte brr[], int off) throws IOException {
@@ -93,14 +117,15 @@ public class savedump implements Runnable {
       int xmlj[]=null;
       for (;;) {
        l = readLoop(gz, brr, off);
-       xmlj = finds(brr, xml_finds, l);
-       int mapj[] = finds(brr, map_finds, l);
+       off = 15;
+       xmlj = findsMin(brr, xml_finds, l);
+       int mapj[] = findsMin(brr, map_finds, l);
        if (isxml = (xmlj != null && (mapj == null ||  mapj[1] > xmlj[1])))break;
        else xmlj = mapj;
        if (xmlj != null)break;
        if (l < blen)break;
        //尾部结束没有必要复制
-       System.arraycopy(brr, offlen , brr, 0, off = 15);
+       System.arraycopy(brr, offlen , brr, 0, off);
       }
       if (xmlj != null) {
        int ki=xmlj[0];
@@ -112,23 +137,17 @@ public class savedump implements Runnable {
        //避免余剩字节导致的低于4k写出。
        ByteBufIo out=new ByteBufIo(ch, 8192);
        try {
-        byte bo[]=bom[ki];
-        int pos=bo.length;
-        out.write(bo);
+        int pos=0;
         byte[] head=(isxml ?xml_finds: map_finds)[ki].drc;
-        byte[] outhead=isxml ?"<?xml".getBytes(set): head;
-        pos += outhead.length;
+        byte[] outhead=isxml && ki <= 2 ?"<?xml".getBytes(set): head;
+        pos = outhead.length;
         out.write(outhead);
         k += head.length;
-        byte[] finds = "/map".getBytes(set);
-        off = finds.length - 1;
-        offlen = blen - off;
-        BMFind bm = new BMFind(finds);
         for (;;) {
          len = l - k;
          out.write(brr, k, len);
-         i = bm.indexOf(brr, k, l);
-         if (i >= 0)lastPos = pos + i + bm.drc.length - k;
+         int obj[] = findsMax(brr, map_end, l);
+         if (obj != null)lastPos = pos + obj[1] + map_end[obj[0]].drc.length - k;
          pos += len;
          k = off;
          if (l < blen)break;

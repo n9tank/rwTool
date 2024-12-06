@@ -89,7 +89,6 @@ public class loader extends IoWriter implements Callable,Runnable {
     boolean skip=fat == '\"';
     boolean c=false;
     bf.setLength(0);
-    tag:
     while (true) {
      int j=0;
      while (j >= 0) {
@@ -112,9 +111,8 @@ public class loader extends IoWriter implements Callable,Runnable {
       break;
      }
     }
-    int i=str.length() - 1;
-	if (i == 0)continue;
-    if (str.charAt(0) == '[' && str.indexOf(']', 1) == i) {
+    int i=str.length();
+    if (str.charAt(0) == '[' && str.indexOf(']', 1) == --i) {
      if (str.startsWith("comment_", 1))last = null;
      else {
       last = str.substring(1, i).trim();
