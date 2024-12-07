@@ -4,19 +4,16 @@ import java.io.File;
 import java.io.InputStream;
 import java.nio.charset.Iso;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Random;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import org.libDeflate.ParallelDeflate;
 import org.libDeflate.UIPost;
 import org.libDeflate.ZipEntryInput;
 import org.libDeflate.ZipEntryM;
 import org.libDeflate.ZipEntryOutput;
-import java.util.Collections;
-import org.libDeflate.ParallelDeflate;
 
 public class zipunpack implements Runnable {
  public static class name {
@@ -40,6 +37,7 @@ public class zipunpack implements Runnable {
  }
  public static int toName(String name) {
   int i=name.length();
+  if (i == 0)return 0;
   while (name.charAt(--i) == '/');
   return ++i;
  } 
@@ -68,7 +66,7 @@ public class zipunpack implements Runnable {
    ZipFile zip= new ZipFile(in, StandardCharsets.ISO_8859_1);
    try {
     ZipEntryOutput zipout=new ZipEntryOutput(ou, 16384, new Iso());
-    zipout.flag = (byte)zipout.igonUtf8;
+    zipout.flag = zipout.igonUtf8;
     HashSet set=new HashSet();
     StringBuilder str=new StringBuilder();
     Enumeration all=zip.entries();   
