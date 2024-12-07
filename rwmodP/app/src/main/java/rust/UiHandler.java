@@ -1,26 +1,14 @@
 package rust;
+import java.io.File;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.zip.ZipFile;
-import org.libDeflate.Canceler;
-import org.libDeflate.ErrorHandler;
 import org.libDeflate.UIPost;
-import java.io.File;
-import java.util.List;
-import java.util.Collections;
+import org.libDeflate.ParallelDeflate;
 
-public class UiHandler extends ErrorHandler {
- public static final ExecutorService ui_pool=Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
- volatile UIPost ui;
- AutoCloseable close;
- public UiHandler(ExecutorService pool, Canceler can, UIPost on) {
-  super(pool, can);
-  ui = on;
- }
- public UiHandler(ExecutorService pool, Canceler can, UIPost on, AutoCloseable close) {
-  this(pool, can, on);
-  this.close = close;
- }
+public class UiHandler {
+ public static final ExecutorService ui_pool=Executors.newFixedThreadPool(ParallelDeflate.CPU);
  public static void close(AutoCloseable co) {
   if (co != null) {
    try {
@@ -28,14 +16,9 @@ public class UiHandler extends ErrorHandler {
    } catch (Exception e) {}
   }
  }
- public void onClose() {
-  close(close);
-  UIPost ui=this.ui;
-  if (ui != null)ui.accept(err);
- }
  public static File out(File path, int i, String end) {
   String name=path.getName();
-  return new File(path.getParent(), name.substring(0, name.length() - i).concat(end));
+  return new File(path.getParent(), ImageUtil.concat(name.substring(0, name.length() - i),end));
  }
  public static List<Throwable> toList(Throwable e) {
   return e == null ?null: Collections.singletonList(e);
@@ -48,7 +31,7 @@ public class UiHandler extends ErrorHandler {
    if (id == p1) {
 	call = new rwmodProtect(f, out(f, 6, "_r.rwmod"), StringUi, raw);
    } else if (id == p2)run = new zippack(f, out(f, 6, "_p.rwmod"), raw, StringUi);
-   else run = new zipunpack(f, out(f, 6, "_u.rwmod"), raw, StringUi);
+   else run = new zipunpack(f, StringUi);
   } else if (path.endsWith(".apk")) {
    call = new rwlib(f, null, new File(dir, "lib.zip"), StringUi);
   } else if (path.endsWith(".rwsave") || path.endsWith(".replay")) {

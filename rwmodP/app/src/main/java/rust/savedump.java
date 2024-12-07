@@ -1,175 +1,122 @@
 package rust;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.nio.channels.FileChannel;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.util.zip.GZIPInputStream;
-import org.libDeflate.ByteBufIo;
-import org.libDeflate.UIPost;
+import java.io.*;
+import java.util.zip.*;
+import org.libDeflate.*;
 
 public class savedump implements Runnable {
  File in;
  File ou;
  UIPost ui;
- static Charset sets[]=new Charset[]{
-  StandardCharsets.US_ASCII,
-  StandardCharsets.UTF_16BE,
-  StandardCharsets.UTF_16LE,
-  Charset.forName("UTF-32BE"),
-  Charset.forName("UTF-32LE")};
- static byte[][] bom=new byte[][]{
-  new byte[]{(byte)0,(byte)0,(byte)0xfe,(byte)0xff},
-  new byte[]{(byte)0xff,(byte)0xfe,(byte)0,(byte)0},
- };
- static BMFind[] xml_finds=bmfind("xml", bom);
- static BMFind[] map_finds=bmfind("<map", null);
- static BMFind[] map_end=bmfind("/map", null);
- public static byte[][] getBytes(String str) throws UnsupportedEncodingException {
-  int l=sets.length;
-  byte[][] brr=new byte[l][];
-  for (;--l >= 0;)
-   brr[l] = str.getBytes(sets[l]);
-  return brr;
+ public static String readIsString(DataInput input) throws IOException{
+  return input.readBoolean() ?input.readUTF(): null;
+ } 
+ public static void saveDump(File in, File ou) throws Exception{
+  BufferedInputStream input= new BufferedInputStream(new FileInputStream(in));
+  DataInputStream data=new DataInputStream(input);
+  try{
+   String str=data.readUTF();
+   if (!"rustedWarfareSave".equals(str)){
+	if (!"rustedWarfareReplay".equals(str)){
+	 throw new DataFormatException();
+	}
+	//rustedWarfareReplay
+	data.readInt();
+	data.readInt();
+	data.readUTF();
+	data.readBoolean();
+	data.readUTF();
+	//gamesave
+	data.readInt();
+	data.readUTF();
+   }
+   //rustedWarfareSave
+   data.readInt();
+   data.readInt();
+   data.readBoolean();
+   data.readUTF();
+   //saveCompression
+   int gzipsize=data.readInt();
+   DataInputStream datagzip=new DataInputStream(new BufferedInputStream(new GZIPInputStream(input, 1024)));
+   try{
+	datagzip.readUTF();
+	//customUnitsBlock
+	int customUnitsBlocklen=datagzip.readInt();
+	datagzip.skip(customUnitsBlocklen);
+	/*
+	 datagzip.readUTF();
+	 //customUnits
+	 datagzip.readInt();
+	 int modunitlen= datagzip.readInt();
+	 for(int i=0;i<modunitlen;i++){
+	 datagzip.readUTF();
+	 datagzip.readInt();
+	 datagzip.readBoolean();
+	 readIsString(datagzip);
+	 datagzip.readLong();
+	 datagzip.readLong();
+	 }*/
+	datagzip.readUTF();
+	int gameSetuplen=datagzip.readInt();
+	datagzip.skip(gameSetuplen);
+	//gameSetup
+	/*
+	 boolean isStarting= datagzip.readBoolean();
+	 boolean isHaveAi= datagzip.readBoolean();
+	 if(data.readBoolean()){
+	 datagzip.readByte();
+	 datagzip.readByte();
+	 int fog=datagzip.readInt();
+	 int credits=datagzip.readInt();
+	 data.readBoolean();
+	 int aidiff= datagzip.readInt();
+	 int initunit=datagzip.readInt();
+	 float income=datagzip.readFloat();
+	 boolean nukes=datagzip.readBoolean();
+	 datagzip.readBoolean();
+	 boolean sharedControl=datagzip.readBoolean();
+	 datagzip.readBoolean();
+	 datagzip.readBoolean();
+	 boolean spectators=datagzip.readBoolean();
+	 datagzip.readBoolean();
+	 int randomSeed=datagzip.readInt();
+	 datagzip.readInt();
+	 datagzip.readInt();
+	 }*/
+	String map=datagzip.readUTF();
+	if (datagzip.readBoolean()){
+	 int mapDataSize=datagzip.readInt();
+	 FileOutputStream out=new FileOutputStream(ou);
+	 try{
+	  int len=Math.min(65536, mapDataSize);
+	  byte mapData[]=new byte[len];
+	  while (true){
+	   datagzip.read(mapData, 0, len);
+	   out.write(mapData, 0, len);
+	   if ((mapDataSize -= len) <= 0)
+		break;
+	   len = Math.min(65536, mapDataSize);
+	  }
+	 }finally{
+	  out.close();
+	 }
+	}
+   }finally{
+	datagzip.close();
+   }
+  }finally{
+   data.close();
+  }
  }
  public savedump(File i, File o, UIPost u) {
   in = i;
   ou = o;
   ui = u;
  }
- public static BMFind[] bmfind(String str, byte end[][]) {
-  int len=sets.length;
-  int endlen=0;
-  if (end != null) {
-   endlen = end.length;
-   len -= endlen;
-  }
-  BMFind[] list=new BMFind[len];
-  for (int i=0;i < len;++i)
-   list[i] = new BMFind(str.getBytes(sets[i]));
-  for (int i=0;len < endlen;++len,++i)
-   list[len] = new BMFind(end[i]);
-  return list;
- }
- public static int[] findsMin(byte arr[], BMFind finds[], int len) {
-  int k=Integer.MAX_VALUE,v=-1;
-  for (int i=0,size=finds.length;i < size;++i) {
-   int j=finds[i].indexOf(arr, 0, len);
-   if (j < k) {
-    k = j;
-    v = i;
-   }
-  }
-  if (v >= 0)
-   return new int[]{v,k};
-  return null;
- }
- public static int[] findsMax(byte arr[], BMFind finds[], int len) {
-  int k=-1,v=-1;
-  for (int i=0,size=finds.length;i < size;++i) {
-   int j=finds[i].indexOf(arr, 0, len);
-   if (j > k) {
-    k = j;
-    v = i;
-   }
-  }
-  if (v >= 0)
-   return new int[]{v,k};
-  return null;
- }
- public static int readLoop(InputStream in, byte brr[], int off) throws IOException {
-  int len=brr.length;
-  while (off < len) {
-   int n = in.read(brr, off, len - off);
-   if (n < 0)return off;
-   off += n;
-  }
-  return off;
- }
  public void run() {
   Throwable ex=null;
   try {
-   BufferedInputStream buff=new BufferedInputStream(new FileInputStream(in));
-   try {
-    byte[] brr=new byte[8207];
-    buff.mark(0);
-    int len= buff.read(brr, 0, 8192) - 1;
-    int i=0;
-    while (i < len)
-     if (brr[i++] == (byte)0x1f && brr[i] == (byte)0x8b)break;
-    if (i > 0) {
-     buff.reset();
-     buff.skip(--i);
-     GZIPInputStream gz=new GZIPInputStream(buff, 1024);
-     try {
-      int l;
-      int off=0;
-      int blen=brr.length;
-      int offlen=blen - 15;
-      //utf32-1
-      boolean isxml=false;
-      int xmlj[]=null;
-      for (;;) {
-       l = readLoop(gz, brr, off);
-       off = 15;
-       xmlj = findsMin(brr, xml_finds, l);
-       int mapj[] = findsMin(brr, map_finds, l);
-       if (isxml = (xmlj != null && (mapj == null ||  mapj[1] > xmlj[1])))break;
-       else xmlj = mapj;
-       if (xmlj != null)break;
-       if (l < blen)break;
-       //尾部结束没有必要复制
-       System.arraycopy(brr, offlen , brr, 0, off);
-      }
-      if (xmlj != null) {
-       int ki=xmlj[0];
-       Charset set = sets[ki];
-       int k = xmlj[1],lastPos=0;
-       FileOutputStream f=new FileOutputStream(ou);
-       FileChannel ch=f.getChannel();
-       //这里是BufferedOutputStream对于输入超过缓冲的没有优化
-       //避免余剩字节导致的低于4k写出。
-       ByteBufIo out=new ByteBufIo(ch, 8192);
-       try {
-        int pos=0;
-        byte[] head=(isxml ?xml_finds: map_finds)[ki].drc;
-        byte[] outhead=isxml && ki <= 2 ?"<?xml".getBytes(set): head;
-        pos = outhead.length;
-        out.write(outhead);
-        k += head.length;
-        for (;;) {
-         len = l - k;
-         out.write(brr, k, len);
-         int obj[] = findsMax(brr, map_end, l);
-         if (obj != null)lastPos = pos + obj[1] + map_end[obj[0]].drc.length - k;
-         pos += len;
-         k = off;
-         if (l < blen)break;
-         System.arraycopy(brr, offlen , brr, 0, off);
-         l = readLoop(gz, brr, off);
-        }
-        out.flush();
-        ch.position(lastPos);
-        byte end[]=">".getBytes(set);
-        f.write(end);
-        ch.truncate(lastPos + end.length);
-       } finally {
-        out.close();
-       }
-      }
-     } finally {
-      gz.close();
-     }
-    }
-   } finally {
-    buff.close();
-   }
+   saveDump(in, ou);
   } catch (Throwable e) {
    ex = e;
   }

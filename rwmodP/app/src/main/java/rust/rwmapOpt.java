@@ -1,12 +1,13 @@
 package rust;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -18,11 +19,16 @@ import me.steinborn.libdeflate.Libdeflate;
 import me.steinborn.libdeflate.LibdeflateCompressor;
 import me.steinborn.libdeflate.LibdeflateDecompressor;
 import me.steinborn.libdeflate.LibdeflateJavaUtils;
+import org.libDeflate.BufWriter;
+import org.libDeflate.ByteBufIo;
+import org.libDeflate.RC;
 import org.libDeflate.UIPost;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.xml.sax.*;
+import java.nio.*;
 
 
 public class rwmapOpt implements Runnable {
@@ -82,19 +88,17 @@ public class rwmapOpt implements Runnable {
   ou = u;
   ui = uo;
  }
- public static void init(HashMap<String,section> src){
+ public static void init(HashMap<String,section> src) {
   HashMap re=src.get("tmx").m;
-  for (Map.Entry<String,Object> en:(Set<Map.Entry>)re.entrySet()) {
-   HashSet add=new HashSet();
-   Collections.addAll(add, ((String)en.getValue()).split(","));  
-   en.setValue(add);
-  }
+  for (Map.Entry<String,Object> en:(Set<Map.Entry>)re.entrySet())
+   en.setValue(rwmodProtect.toSet((String)en.getValue()));
   rwmapOpt.remove = re;
   HashMap<String,String> set= src.get("unit").m;
   String list[]=set.get("replace").split(",");
-  HashSet oldunits=new HashSet();
-  HashMap fovers=new HashMap();
   int i=0,len=list.length;
+  int size=(len << 1 / 3) + 1;
+  HashSet oldunits=new HashSet(size);
+  HashMap fovers=new HashMap(size);
   do {
    String k=list[i++];
    String v=list[i++];
@@ -104,9 +108,9 @@ public class rwmapOpt implements Runnable {
   rwmapOpt.oldunits = oldunits;
   rwmapOpt.fovers = fovers;
   list = set.get("unit").split(",");
-  HashMap units = new HashMap();
-  i = 0;
   len = list.length;
+  HashMap units = new HashMap(len << 2 / 9 + 1);
+  i = 0;
   do {
    String id=list[i++];
    String v=list[i++];
@@ -164,7 +168,7 @@ public class rwmapOpt implements Runnable {
   int team=-1;
   String type=null;  
   NodeList list=node.getChildNodes();
-  for (int i=0,len=list.getLength();i<len;i++) {
+  for (int i=0,len=list.getLength();i < len;i++) {
    Node item = list.item(i);
    if (item.getNodeType() != Node.ELEMENT_NODE)continue;
    NamedNodeMap attr=item.getAttributes();
@@ -203,23 +207,18 @@ public class rwmapOpt implements Runnable {
   key.id = -1;
   return key;
  }
- public static ByteBuffer getBuf(Node item) throws Exception {
+ public static ByteBuffer getBuf(LibdeflateDecompressor def, Node item) throws Exception {
   NamedNodeMap attr=item.getAttributes();
   int w= Ipare(attr, "width");
   int h= Ipare(attr, "height");
-  ByteBuffer buffer= ByteBuffer.allocateDirect(w * h << 2);
+  int size=w * h << 2;
+  ByteBuffer buffer=RC.newbuf(size);
   Node data = getFirst(0, item);
   String dataValue = data.getTextContent().trim();
-  ByteBuffer basebuf=ByteBuffer.wrap(Base64.getDecoder().decode(dataValue));
-  int type=data.getAttributes().getNamedItem("compression").getNodeValue().equals("gzip") ?Libdeflate.GZIP: Libdeflate.ZLIB;
-  LibdeflateDecompressor def=new LibdeflateDecompressor(type);
-  try {
-   while (basebuf.hasRemaining())
-    def.decompress(basebuf, buffer);
-   //这里会导致上下文切换
-  } finally {
-   def.close();
-  }
+  ByteBuffer basebuf=ByteBuffer.wrap(ImageUtil.base64decode(dataValue));
+  def.mode = data.getAttributes().getNamedItem("compression").getNodeValue().equals("gzip") ?Libdeflate.GZIP: Libdeflate.ZLIB;
+  int len= def.decompress(basebuf, buffer);
+  if (len < 0)throw new IOException();
   buffer.flip();
   return buffer;
  }
@@ -229,21 +228,25 @@ public class rwmapOpt implements Runnable {
   addAttr(document, unitat, "firstgid", String.valueOf(index));
   return unittiles;
  }
- public static ByteBuffer deflate(ByteBuffer buf) {
-  LibdeflateCompressor def=new LibdeflateCompressor(12, 1);
+ public static ByteBuffer deflate(LibdeflateCompressor def, ByteBuffer buf) {
   ByteBuffer ebuf=ByteBuffer.allocate(LibdeflateJavaUtils.getBufSize(buf.limit(), 1));
   def.compress(buf, ebuf);
-  def.close();
   ebuf.flip();
   return ebuf;
  }
- //懒得搞并行放这里了
- //https://github.com/Timeree/RwMapCompressor
+ //jdk的base64的标准库不支持直接堆，要优化的话需要重写
+ //tmx的不会太大不同于Zip不属于性能瓶颈，不予优化
  public void run() {
   Throwable ex=null;
   try {
    DocumentBuilder docBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-   Document document = docBuilder. parse(in);
+   /*防止XXE没有任何意义
+	docBuilder.setEntityResolver(new EntityResolver(){
+	public InputSource resolveEntity(String publicId, String systemId) throws IOException{
+	throw new IOException();
+	}
+	});*/
+   Document document = docBuilder.parse(in);
    HashMap tiles = new HashMap();
    HashSet treeTile=new HashSet();
    HashMap utiles=new HashMap();
@@ -255,106 +258,112 @@ public class rwmapOpt implements Runnable {
    ArrayList layer=new ArrayList();
    HashMap<Short,List<base64png>> pngs=new HashMap();
    Node unitnode=null;
-   if ("properties".equals(pr.getNodeName()))map.removeChild(pr);
    NodeList nodeList =map.getChildNodes();
-   for (int i =nodeList.getLength();--i >= 0;) {
-	Node item = nodeList.item(i);
-    String type=item.getNodeName(); 
-    if (type == null)continue; 
-    String name; 
-    if ("objectgroup".equals(type)) {
-     if (item.getChildNodes().getLength() == 0) {
-      map.removeChild(item);
-      continue;        
-     }
-     NodeList objlist=item.getChildNodes();    
-     if ((name = item.getAttributes().getNamedItem("name").getNodeValue()).equalsIgnoreCase("unitobjects") || name.equalsIgnoreCase("unitsobject")) {
-      unitnode = item;       
-     } else {
-      HashSet pot=remove.get("point");
-      HashSet no=remove.get("obj");            
-      for (int i2=objlist.getLength();--i2 >= 0;) {
-       Node next=objlist.item(i2);  
-       if (next.getNodeType() == Node.ELEMENT_NODE) {                      
-        NamedNodeMap  node=  next.getAttributes();
-        Node nodetype=node.getNamedItem("type");
-        String ltype=nodetype == null ?null: nodetype.getNodeValue().toLowerCase();         
-        boolean none=nodetype == null || no.contains(ltype);
-        if (none || pot.contains(ltype))  {       
-         remove(node, "width") ;   
-         remove(node, "height") ;           
+   LibdeflateDecompressor def=new LibdeflateDecompressor(0);
+   try {
+    if ("properties".equals(pr.getNodeName()))
+     map.removeChild(pr);
+    for (int i =nodeList.getLength();--i >= 0;) {
+     Node item = nodeList.item(i);
+     String type=item.getNodeName(); 
+     if (type == null)continue; 
+     String name; 
+     if ("objectgroup".equals(type)) {
+      if (item.getChildNodes().getLength() == 0) {
+       map.removeChild(item);
+       continue;
+      }
+      NodeList objlist=item.getChildNodes();
+      if ((name = item.getAttributes().getNamedItem("name").getNodeValue()).equalsIgnoreCase("unitobjects") || name.equalsIgnoreCase("unitsobject"))
+       unitnode = item;       
+      else {
+       HashSet pot=remove.get("point");
+       HashSet no=remove.get("obj");            
+       for (int i2=objlist.getLength();--i2 >= 0;) {
+        Node next=objlist.item(i2);  
+        if (next.getNodeType() == Node.ELEMENT_NODE) {                      
+         NamedNodeMap  node=  next.getAttributes();
+         Node nodetype=node.getNamedItem("type");
+         String ltype=nodetype == null ?null: nodetype.getNodeValue().toLowerCase();         
+         boolean none=nodetype == null || no.contains(ltype);
+         if (none || pot.contains(ltype))  {       
+          remove(node, "width") ;   
+          remove(node, "height") ;           
+         }
+         if (none) {
+          node.getNamedItem("x").setNodeValue("0");
+          node.getNamedItem("y").setNodeValue("0");             
+         }             
+         if (nodetype == null) remove(node, "id") ;
         }
-        if (none) {
-         node.getNamedItem("x").setNodeValue("0");
-         node.getNamedItem("y").setNodeValue("0");             
-        }             
-        if (nodetype == null) remove(node, "id") ;
-       }
-      }}
-     continue;
-    } else if ("layer".equals(type)) {
-     if ((name = item.getAttributes().getNamedItem("name").getNodeValue()).equalsIgnoreCase("set")) {
-      map.removeChild(item);
+       }}
       continue;
-     }
-     pr = item;
-     ByteBuffer buffer=getBuf(item);
-     layer.add(item);                      
-     layer.add(buffer);
-     buffer.order(ByteOrder.LITTLE_ENDIAN);
-     while (buffer.hasRemaining()) {
-      int n=buffer.getInt() & 536870911;
-      tiles.putIfAbsent(n, "");
-     }
-     buffer.flip();
-    } else if ("tileset".equals(type)) {
-     NamedNodeMap attr=item.getAttributes();
-     int first=Ipare(attr, "firstgid"); 
-     Node src=item.getAttributes().getNamedItem("source");
-     boolean check=true;
-     if (src != null) {
-      String v=src.getNodeValue();
-      if ("units.tsx".equals(v)) {
-       unitid = first;
-       check = false;
-      } else if ("misc.tsx".equals(v)) {
-       miscid = first;
-       check = false;
+     } else if ("layer".equals(type)) {
+      if ((name = item.getAttributes().getNamedItem("name").getNodeValue()).equalsIgnoreCase("set")) {
+       map.removeChild(item);
+       continue;
       }
-     }
-     int c= Ipare(attr, "tilecount");
-     Node node= getFirst(i + 1, map);
-     boolean hasnext = node.getNodeName().equals("tileset");
-     if (c < 0) {
-      if (hasnext)c = Ipare(node.getAttributes(), "firstgid");         
-      else if (max > 0) c = max;
-      else c = max = first + 270;
-      //无法获取到底使用了多少地块
-     } else c += first;
-     tag:         
-     if (check) {
-      for (int j=c;--j >= first;) {
-       if (tiles.containsKey(j)) {
-        break tag;
+      pr = item;
+      ByteBuffer buffer=getBuf(def, item);
+      layer.add(item);                      
+      layer.add(buffer);
+      buffer.order(ByteOrder.LITTLE_ENDIAN);
+      while (buffer.hasRemaining()) {
+       int n=buffer.getInt() & 536870911;
+       tiles.putIfAbsent(n, "");
+      }
+      buffer.flip();
+     } else if ("tileset".equals(type)) {
+      NamedNodeMap attr=item.getAttributes();
+      int first=Ipare(attr, "firstgid"); 
+      Node src=item.getAttributes().getNamedItem("source");
+      boolean check=true;
+      if (src != null) {
+       String v=src.getNodeValue();
+       if ("units.tsx".equals(v)) {
+        unitid = first;
+        check = false;
+       } else if ("misc.tsx".equals(v)) {
+        miscid = first;
+        check = false;
        }
       }
-      if (!hasnext)max = first;
-      map.removeChild(item);
-      continue;
-     }
-     if (max < c)max = c;
-     NodeList tilesetList = item.getChildNodes();
-     for (int i2=tilesetList.getLength();--i2 >= 0;) {
-      Node child = tilesetList.item(i2);
-      if ("tile".equals(child.getNodeName())) {
-       NamedNodeMap childAttr = child.getAttributes();
-       Node idn=  childAttr.getNamedItem("id"); 
-       Integer id = Integer.parseInt(idn.getNodeValue()) + first;
-       if (!tiles.containsKey(id)) 
-        item.removeChild(child);
+      int c= Ipare(attr, "tilecount");
+      Node node= getFirst(i + 1, map);
+      boolean hasnext = node.getNodeName().equals("tileset");
+      if (c < 0) {
+       if (hasnext)c = Ipare(node.getAttributes(), "firstgid");         
+       else if (max > 0) c = max;
+       else c = max = first + 270;
+       //无法获取到底使用了多少地块
+      } else c += first;
+      tag:         
+      if (check) {
+       for (int j=c;--j >= first;) {
+        if (tiles.containsKey(j)) {
+         break tag;
+        }
+       }
+       if (!hasnext)max = first;
+       map.removeChild(item);
+       continue;
+      }
+      if (max < c)max = c;
+      NodeList tilesetList = item.getChildNodes();
+      for (int i2=tilesetList.getLength();--i2 >= 0;) {
+       Node child = tilesetList.item(i2);
+       if ("tile".equals(child.getNodeName())) {
+        NamedNodeMap childAttr = child.getAttributes();
+        Node idn=  childAttr.getNamedItem("id"); 
+        Integer id = Integer.parseInt(idn.getNodeValue()) + first;
+        if (!tiles.containsKey(id)) 
+         item.removeChild(child);
+       }
       }
      }
     }
+   } finally {
+    def.close();
    }
    if (unitid == 0) {
     int first=++max;
@@ -434,7 +443,7 @@ public class rwmapOpt implements Runnable {
           map.removeChild(item);
           continue tag;
          }
-        }                     
+        }
        }
       }
      }
@@ -526,68 +535,71 @@ public class rwmapOpt implements Runnable {
     if (unittiles.getChildNodes().getLength() > 1)map.insertBefore(unittiles, pr); 
     if (getFirst(0, unitnode) == null)map.removeChild(unitnode);    
    }
-   if (pngs.size() > 0) {
-    for (Map.Entry<Short,List<base64png>> en:pngs.entrySet()) {
-     short s= en.getKey();
-     int h=s & 0xff;
-     int w=((s & 0xff00) >> 8);
-     Node tile=tile(document, ++max);
-     NamedNodeMap attr=tile.getAttributes();
-     if (h != 20)addAttr(document, attr, "height", String.valueOf(h));
-     if (w != 20)addAttr(document, attr, "width", String.valueOf(h));
-     Node posadd=document.createElement("properties");   
-     Node por= document.createElement("property");
-     addAttr(document, por.getAttributes(), "name", "embedded_png");                 
-     posadd.appendChild(por);
-     tile.appendChild(posadd);
-     List<rwmapOpt.base64png> list=en.getValue();
-     int size=getPngSize(list, treeTile, tiles);
-     byte irr[]=ImageUtil.tmxOpt(list, treeTile, tiles, w, h, max, size);
-     por.setTextContent(Base64.getEncoder().encodeToString(irr));
-     map.insertBefore(tile, pr);
-     for (rwmapOpt.base64png png:list) {
-      if (png == null)continue;
-      NodeList nodelist=png.node;
-      for (int j=nodelist.getLength();--j >= 0;) {
-       Node node=nodelist.item(j);
-       if ("tile".equals(node.getNodeName())) {
-        NamedNodeMap nattr=node.getAttributes();
-        int id=Ipare(nattr, "id");
-        Integer fid=png.start + id;
-        if (!treeTile.contains(fid) && (fid = (Integer) tiles.get(fid)) != null) {
-         addAttr(document, nattr, "id", String.valueOf(fid - max));
-         tile.appendChild(node);
-        }
+   for (Map.Entry<Short,List<base64png>> en:pngs.entrySet()) {
+    short s= en.getKey();
+    int h=s & 0xff;
+    int w=((s & 0xff00) >> 8);
+    Node tile=tile(document, ++max);
+    NamedNodeMap attr=tile.getAttributes();
+    if (h != 20)addAttr(document, attr, "height", String.valueOf(h));
+    if (w != 20)addAttr(document, attr, "width", String.valueOf(h));
+    Node posadd=document.createElement("properties");   
+    Node por= document.createElement("property");
+    addAttr(document, por.getAttributes(), "name", "embedded_png");                 
+    posadd.appendChild(por);
+    tile.appendChild(posadd);
+    List<rwmapOpt.base64png> list=en.getValue();
+    int size=getPngSize(list, treeTile, tiles);
+    byte irr[]=ImageUtil.tmxOpt(list, treeTile, tiles, w, h, max, size);
+    por.setTextContent(ImageUtil.base64encode(irr));
+    map.insertBefore(tile, pr);
+    for (rwmapOpt.base64png png:list) {
+     if (png == null)continue;
+     NodeList nodelist=png.node;
+     for (int j=nodelist.getLength();--j >= 0;) {
+      Node node=nodelist.item(j);
+      if ("tile".equals(node.getNodeName())) {
+       NamedNodeMap nattr=node.getAttributes();
+       int id=Ipare(nattr, "id");
+       Integer fid=png.start + id;
+       if (!treeTile.contains(fid) && (fid = (Integer) tiles.get(fid)) != null) {
+        addAttr(document, nattr, "id", String.valueOf(fid - max));
+        tile.appendChild(node);
        }
       }
      }
-     max += size;
     }
+    max += size;
    }
-   int i=layer.size();
-   while (--i > 0) {
-    ByteBuffer warp= (ByteBuffer)layer.get(i);   
-    Node data=(Node)layer.get(--i);    
-    int j=warp.limit();
-    while ((j -= 4) >= 0) {
-     int rt=warp.getInt(j);
-     Object to= tiles.get(rt & 536870911);    
-     if (to instanceof Integer) {
-      warp.putInt(j, (rt & -536870912) | (Integer)to);
+   LibdeflateCompressor defc=new LibdeflateCompressor(12, Libdeflate.ZLIB);
+   try {
+    int i=layer.size();
+    while (--i > 0) {
+     ByteBuffer warp= (ByteBuffer)layer.get(i);   
+     Node data=(Node)layer.get(--i);    
+     int j=warp.limit();
+     while ((j -= 4) >= 0) {
+      int rt=warp.getInt(j);
+      Object to= tiles.get(rt & 536870911);    
+      if (to instanceof Integer) {
+       warp.putInt(j, (rt & -536870912) | (Integer)to);
+      }
      }
+     data = getFirst(0, data);
+     ByteBuffer result=deflate(defc, warp);
+     data.getAttributes().getNamedItem("compression").setNodeValue("zlib");
+     data.setTextContent(ImageUtil.base64encode(result));
     }
-    data = getFirst(0, data);
-    ByteBuffer result=deflate(warp);
-    data.getAttributes().getNamedItem("compression").setNodeValue("zlib");
-    data.setTextContent(new String(Base64.getEncoder().encode(result).array()));
+   } finally {
+    defc.close();
    }
-   BufferedWriter buff=new BufferedWriter(new FileWriter(ou));
+   BufferedWriter buff=new BufferedWriter(new BufWriter(new ByteBufIo(FileChannel.open(ou.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE), RC.IOSIZE), StandardCharsets.UTF_8));
    try {
     outxml(document, buff);
    } finally {
     buff.close();
    }
-  } catch (Throwable e) {
+  } catch (Exception e) {
    ex = e;
   }
   if (ex != null)ou.delete();
@@ -598,7 +610,8 @@ public class rwmapOpt implements Runnable {
   for (int i=0,l=list.getLength();i < l;++i) {
    Node item=list.item(i);
    if (item.getNodeType() == Node.TEXT_NODE) {
-	out.write(item.getNodeValue().replaceAll("\\s", ""));
+	CharBuffer buf=iniobj.trims(item.getNodeValue());
+	out.write(buf.array(), 0, buf.limit());
 	continue;
    }
    out.write('<');

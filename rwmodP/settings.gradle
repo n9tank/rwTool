@@ -7,11 +7,16 @@ pluginManagement {
         maven { url 'https://maven.aliyun.com/repository/public' }
        // gradlePluginPortal()
        // google()
-       // mavenCentral()
+        mavenCentral()
   }
 }
 
 dependencyResolutionManagement {
+repositories {
+    flatDir {
+        dirs 'app/libs'
+    }
+}
   repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
   repositories {
   maven { url 'https://maven.aliyun.com/repository/central' }
@@ -20,7 +25,7 @@ dependencyResolutionManagement {
         maven { url 'https://maven.aliyun.com/repository/jcenter' }
         maven { url 'https://maven.aliyun.com/repository/public' }
  // google()
- // mavenCentral()
+  mavenCentral()
   }
 }
 
@@ -28,5 +33,5 @@ rootProject.name = "My Application"
 
 include(":apk")
 include(":lib")
-//include(":jar")
+include(":jar")
 

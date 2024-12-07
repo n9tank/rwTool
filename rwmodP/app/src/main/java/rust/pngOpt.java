@@ -17,8 +17,8 @@ public class pngOpt implements Runnable {
  }
  public void run() {
   List ex=null;
-  if(!pngquant.file(in.getAbsolutePath(), ou.getAbsolutePath(), pngquant.attr(65, 80, 1), 0.5f)){
-   ex=UiHandler.toList(new IOException("pngqunat fail"));
+  if (!pngquant.file(in.getAbsolutePath(), ou.getAbsolutePath(), pngquant.attr(65, 80, 1), 0.5f)) {
+   ex = UiHandler.toList(new IOException());
   }
   ui.accept(ex);
  }

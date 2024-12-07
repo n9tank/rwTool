@@ -20,8 +20,7 @@
 - [ZipParallel](https://github.com/n9tank/ZipParallel)
 - [pngquant](https://github.com/n9tank/pngquant-android)
 
-我提供了一份armv8_64的构建文件，你可以直接使用它。
-将编译文件放在apk/libsAAr下。
+我提供了一份armv8_64的构建文件，这可能是过时的，强烈建议自行编译，将编译文件放在app/libs下。
 
 ### 构建依靠库
 导入这些库的依赖文件。
@@ -56,9 +55,12 @@ abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
 ``` 命令
 cargo +nightly build --target $TARGET_ARCH --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort
 ```
-termux tur仓库的rustc-nightly的需要格外携带环境路径。
+在termux上构建，请在proot（卡成翔）容器下工作，否则不支持rustup会导致嵌入的std无法重新构建而膨胀。
 
-将构建的静态库导入src源文件。（尚未适配多目标）
+rust环境并不需要android ndk，我还尚未编写cargo一键构建，请导出静态库作为链接。
+
+推荐使用github actions，这样就不需要折腾ArchLinux，以及rust工具链了。
+[android-aarch64-ci](https://github.com/n9tank/libimagequant-android-aarch64-ci)
 
 对于其他平台请使用cmake构建。
 
@@ -81,7 +83,7 @@ jar程序不支持直接导入AAR，你需要依赖库jar导入在libs。
 
 ### 编译
 
-./gradlew jar:jar
+./gradlew jar:assemble
 
 ### 打包所有文件
 

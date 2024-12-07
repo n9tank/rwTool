@@ -6,14 +6,13 @@ import org.libDeflate.ErrorHandler;
 public class iniTask implements Callable {
  loader lod;
  rwmodProtect pot;
- ErrorHandler err;
- public iniTask(rwmodProtect pot, loader lod, ErrorHandler e) throws IOException {
+ public iniTask(rwmodProtect pot, loader lod) throws IOException {
   this.pot = pot;
   this.lod = lod;
-  err = e;
-  e.add(this);
+  pot.uih.add(this);
  }
  public Object call() throws Exception {
+  ErrorHandler err=pot.uih;
   if (!err.iscancel()) {
    try {
 	if (!pot.write(lod)) {

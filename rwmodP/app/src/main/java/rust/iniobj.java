@@ -5,24 +5,19 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.Collections;
-import java.util.Arrays;
+import java.nio.*;
+import java.nio.charset.*;
 
 public class iniobj {
  public HashMap put;
  public HashMap gl;
  public HashMap ascache;
- public iniobj() {
-  put = new HashMap();
- }
  public static HashMap clone(HashMap map) {
-  HashMap put=new HashMap();
+  HashMap put=(HashMap)map.clone();
   for (Map.Entry<String,section> en:(Set<Map.Entry<String,section>>)map.entrySet()) {
    section cp=new section();
    cp.m = (HashMap)en.getValue().m.clone();
-   put.put(en.getKey(), cp);
+   en.setValue(cp);
   }
   return put;
  }
@@ -30,81 +25,110 @@ public class iniobj {
   put = map;
  }
  public static void put(HashMap src, HashMap drc) {
+  MapResize resize=new MapResize();
   for (Map.Entry<String,section>en:(Set<Map.Entry>)drc.entrySet()) {
    String ac=en.getKey();
    HashMap list=null;
    section cpy = (section)src.get(ac);
-   if (cpy != null) {
+   if (cpy != null)
     list = cpy.m;
-   } else {
+   else {
     cpy = new section();
     src.put(ac, cpy);
    }
    String str=list == null ?null: (String)list.get("@copyFrom_skipThisSection");
-   boolean has="1".equals(str) || "true".equals(str);
+   boolean has="1".equals(str)/* || "true".equals(str)*/;
    if (!has) {
     section cp = en.getValue();
     HashMap listdrc=cp.m;
     if (list == null)cpy.m = (HashMap)listdrc.clone();
-    else {
-	 list.putAll(new MapResize(listdrc));   
-	 for (Map.Entry en2:(Set<Map.Entry>)listdrc.entrySet())
-      list.putIfAbsent(en2.getKey(), en2.getValue());
-    }
+    else putIfAll(resize, list, listdrc);
    }
   }
- }	
+ }
  public void put(iniobj drc) {
   put(put, drc.put);
  }
- void asFor(section cpy, String key) {
+ public static final void putIfAll(MapResize resize, HashMap list, HashMap listdrc) {
+  resize.size = listdrc.size();
+  list.putAll(resize);   
+  for (Map.Entry en:(Set<Map.Entry>)listdrc.entrySet())
+   list.putIfAbsent(en.getKey(), en.getValue());
+ }
+ public void asFor(section cpy) {
+  //copyFrom去重由于luke的屎容易引发BUG，应该交给开发者自己处理
   HashMap map=put;
   HashMap hash=cpy.m;
   String str = (String)hash.remove("@copyFromSection");
-  if (str != null && !str.equals("IGNORE")) {
+  //这里不允许尾部仅有“,”的占位符
+  if (str != null && str.length() > 0 && !str.equals("IGNORE")) {
    String list[]=str.split(",");
-   int i=list.length;
+   int len=list.length;
    HashMap copy=null;
-   if (i == 1) {
-	String vl=list[0].trim();
-	section set=(section)map.get(vl);
+   if (len == 1) {
+	section set=(section)map.get(list[0].trim());
 	if (set != null) {
-	 asFor(set, vl);
+	 asFor(set);
 	 copy = set.m;
 	}
    } else {
-    i = 0;
-    for (int len=list.length;i < len;++i)
+    for (int i=0;i < len;++i)
      list[i] = list[i].trim();
-    Strings strs=new Strings(list);
-    copy = (HashMap)ascache.get(strs);
-    if (copy == null) {
+    HashMap maps[]= merge(list);
+    if (maps[1] == null) {
+     copy = maps[0];
+    } else {
      copy = new HashMap();
-     for (String vl:list) {
-      section set=(section)map.get(vl);
-      if (set != null) {
-       asFor(set, vl);
-       copy.putAll(set.m);
-      }
+     for (HashMap in:maps) {
+      if (in == null)break;
+      copy.putAll(in);
      }
-     ascache.put(strs, copy);
+     Comparables ckey=new Comparables();
+     ckey.set(list, 0, list.length);
+     ascache.put(ckey, copy);
     }
    }
    if (copy != null) {
 	cpy.copy = copy;
-	hash.putAll(new MapResize(copy));
-	for (Map.Entry en:(Set<Map.Entry>)copy.entrySet())
-	 hash.putIfAbsent(en.getKey(), en.getValue());
+    putIfAll(new MapResize(), hash, copy);
    }
   }
  }
  public void as() {
   globalMap();
   ascache = new HashMap();
-  Set<Map.Entry> se=(Set<Map.Entry>)put.entrySet();
-  for (Map.Entry<String,Object> en2:se)
-   asFor((section)en2.getValue(), en2.getKey());
+  for (section v:(Collection<section>)put.values())
+   asFor(v);
   ascache = null;
+ }
+ public HashMap[] merge(String list[]) {
+  int len=list.length;
+  HashMap copy[]=new HashMap[len];
+  Comparables strs=new Comparables();
+  HashMap ini=put;
+  int c=0;
+  wh:
+  for (int i=0;i < len;) {
+   int v=len;
+   int n;
+   for (;(n = (v - 1)) > i;v = n) {
+    strs.set(list, i, v);
+    HashMap map= (HashMap)ascache.get(strs);
+    if (map != null) {
+     //如果考虑大块会提高时间复制度，这里简单跳过
+     i = v;
+     copy[c++] = map;
+     continue wh;
+    }
+   }
+   String key=list[i++];
+   section map=(section)ini.get(key);
+   if (map != null) {
+    asFor(map);
+    copy[c++] = map.m;
+   }
+  }
+  return copy;
  }
  static final HashSet set;
  static{
@@ -115,10 +139,59 @@ public class iniobj {
   sset.add("sin");
   sset.add("sqrt");
  }
- static final Pattern find=Pattern.compile("[a-zA-Z_][0-9a-zA-Z_.]*");
- static final Pattern mathExp=Pattern.compile("[-+/*^%()]");
+ public static int indexOfDefine(CharSequence str, int i) {
+  int len=str.length();
+  for (;i < len;++i) {
+   char c=str.charAt(i);
+   if (c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+    return i;
+   }
+  }
+  return -1;
+ }
+ public static int nextDefine(CharSequence str, int i) {
+  int len=str.length();
+  for (;++i < len;) {
+   char c=str.charAt(i);
+   if (c != '.' && c != '_' && (c < '0' || c > '9') && (c < 'a' || c > 'z') && (c < 'A' || c > 'Z')) {
+    return i;
+   }
+  }
+  return len;
+ }
+ static final char[] mathExp=new char[]{'+','-','*','/','%','^','(',')'};
+ public static int indexOfChars(CharSequence str, char list[]) {
+  for (int i=0,len=str.length();i < len;++i) {
+   char c=str.charAt(i);
+   for (char j:list)
+    if (c == j)return i;
+  }
+  return -1;
+ }
+ public static ByteBuffer base64trims(String str) {
+  int k=0;
+  int len=str.length();
+  byte[] cr=new byte[len];
+  for (int i = 0; i < len; i++) {
+   byte c =(byte)str.charAt(i);
+   if (c != '\n')
+    cr[k++] = c;
+  }
+  return ByteBuffer.wrap(cr, 0, k);
+ }
+ public static CharBuffer trims(String str) {
+  int k=0;
+  int len=str.length();
+  char[] cr=new char[len];
+  for (int i = 0; i < len; i++) {
+   char c =str.charAt(i);
+   if (c != ' ' && c != '\n')
+    cr[k++] = c;
+  }
+  return CharBuffer.wrap(cr, 0, k);
+ }
  public static String copyValue(HashMap<String,section> ini, String list, String k) {
-  if (list != null && ! list.equals("IGNORE")) {
+  if (list != null && list.length() > 0 && ! list.equals("IGNORE")) {
    String keys[]=list.split(",");
    for (int i=keys.length;--i >= 0;) {
 	section kvs= ini.get(keys[i].trim());
@@ -150,7 +223,7 @@ public class iniobj {
    }
   }
  }
- String get(String str, String eqz, section cpy, StringBuilder buff) {
+ String get(String str, String thisSectionKey, section thisSection, StringBuilder buff) {
   buff.setLength(0);
   int i=0,j=0;
   while ((i = str.indexOf("${", i)) >= 0) {
@@ -158,35 +231,39 @@ public class iniobj {
    j = i;
    int n=str.indexOf('}', i += 2);
    if (n < 0)break;
-   String key=str.substring(i, n).trim();
-   if (key.length() > 0) {
-    Matcher matcher=find.matcher(key);
-    int q=0,st=buff.length();
-    while (matcher.find()) {
-     int k;
-     buff.append(key, q, k = matcher.start());
-     String group = matcher.group(0);
+   String matcher=str.substring(i, n).trim();
+   //实际上应该考虑其他空字符，不过为了省事就这样
+   if (matcher.length() > 0) {
+    int st=buff.length();
+    int groupst=0;
+    int lastst=0;
+    while ((groupst = indexOfDefine(matcher, groupst)) >= 0) {
+     buff.append(matcher, lastst, groupst);
+     lastst = groupst;
+     groupst = nextDefine(matcher, groupst);
+     String group=matcher.substring(lastst, groupst);
      if (!set.contains(group)) {
       Object o=null;
-      String list[]=group.split("\\.", 2);
-      String keyv=list[0];
-      if (list.length > 1) {
-       if (!keyv.equals("section") && !key.equals(eqz)) {
-        cpy = (section)put.get(keyv);
+      int spiltIn=group.indexOf('.');
+      String key=spiltIn < 0 ?group: group.substring(0, spiltIn);
+      if (spiltIn >= 0) {
+       section cpy;
+       if (!key.equals("section") && !key.equals(thisSectionKey)) {
+        cpy = (section)put.get(key);
         if (cpy == null)return null;
-       }
-       o = cpy.m.get(list[1]);
+       } else cpy = thisSection;
+       o = cpy.m.get(group.substring(spiltIn + 1));
       } else {
-       o = cpy.m.get("@define ".concat(keyv));
-       if (o == null)o = gl.get(keyv);
+       o = thisSection.m.get("@define ".concat(key));
+       if (o == null)o = gl.get(key);
       }
       if (o == null)return null;
       buff.append(o);
-      q = matcher.end();
-     } else q = k;
+      lastst = groupst;
+     }
     }
-    buff.append(key, q, key.length());
-    if (mathExp.matcher(key).find()) {
+    buff.append(matcher, lastst, matcher.length());
+    if (indexOfChars(matcher, mathExp) >= 0) {
      double b= MathExp.get(buff.subSequence(st, buff.length()));
      buff.setLength(st);
      int intd=(int)b;

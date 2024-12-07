@@ -1,0 +1,6 @@
+[lib]
+edition = "2018"
+[dependencies]
+rustfmt = "0.6"
+[formatter]
+max_width = 20

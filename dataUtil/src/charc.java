@@ -1,4 +1,3 @@
-package rust;
 import java.text.Bidi;
 import java.util.Comparator;
 public class charc implements Comparator<String> {

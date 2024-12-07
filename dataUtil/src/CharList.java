@@ -1,21 +1,15 @@
-package rust;
 
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.regex.Pattern;
-import java.nio.file.Paths;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.nio.charset.CharsetEncoder;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 
-public class test {
- private static final Pattern skip= Pattern.compile("\\p{C}");
+public class CharList {
+ //private static final Pattern skip= Pattern.compile("\\p{C}");
  public static void charList(int start, int max, boolean em, BufferedWriter buff) throws Exception {
   ArrayList crr=new ArrayList();
   ArrayList err=new ArrayList();
@@ -39,10 +33,13 @@ public class test {
    }
    }
    map.eraseColor(0);*/
+  Pattern skip= Pattern.compile("\\s");
+  Pattern skip2= Pattern.compile(".");
   while (start < max) {
    if (start >= 0xd800 && start <= 0xdfff)start = 0xe000;
    String s=String.valueOf((char)start++);
-   if (skip.matcher(s).find())continue;
+   if (skip.matcher(s).matches())continue;
+   if (!skip2.matcher(s).matches())continue;
    float x=pain.measureText(s);
    if (x <= 0) {
     pain.getTextBounds(s, 0, 1, rec);
@@ -66,37 +63,11 @@ public class test {
   buff.write('\n');
  }
  public static void main(String arg[])throws Exception {
-  /* BufferedWriter buff=new BufferedWriter(new FileWriter("sdcard/a.txt"));
-   charList(0x80, 0x07ff, false, buff);
-   charList(0x0800, 0xffff, true, buff);
-   buff.close();
-   System.out.println();
-  System.out.println(pathStr("/sdcard/"));*/
- }
- public static String pathStr(String str) {
- return Paths.get(str).normalize().toString();
-  /*StringBuilder bf=new StringBuilder();
-  path(str, str.length(), 0, bf);
-  return bf.toString();*/
- }
- public static void path(String str, int len, int cou, StringBuilder bf) {
-  int i=len - 1;
-  boolean with=false;
-  while ((i = str.lastIndexOf('/', i) - 1) >= 0) {
-   int n=i - 1;
-   if (cou > 0 || with) {
-    len = i + 2;
-    with = cou > 0;
-   }
-   int j=n - 1;
-   if (j <= 0 || str.startsWith("/..", j)) {
-    if (j < 0 || cou <= 0) {
-     if (n > 0)path(str, n, 1, bf);
-     bf.append(str, j <= 0 ?0: i + 2, len);
-     return;
-    }
-    cou++;
-   } else cou--;
-  }
+  BufferedWriter buff=new BufferedWriter(new FileWriter("sdcard/a.txt"));
+  charList(0, 0x7f, false, buff);
+  charList(0x80, 0x07ff, true, buff);
+  charList(0x0800, 0xffff, true, buff);
+  buff.close();
+  System.out.println();
  }
 }
