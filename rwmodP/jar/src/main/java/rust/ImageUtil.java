@@ -25,7 +25,7 @@ public class ImageUtil {
    BufferedImage img=ImageIO.read(new MemoryCacheImageInputStream(new ByteArrayInputStream(imgarr)));
    int first=png.start;
    int pw=img.getWidth() / w;
-   for (int c=0,len=png.len;c<len;++c) {
+   for (int c=0,len=png.len;c < len;++c) {
     Integer key=c + first;     
     if (!tree.contains(key) && tiles.containsKey(key)) {
      int left=c % pw * w;   
@@ -37,7 +37,7 @@ public class ImageUtil {
     }
    }
   }
-  byte out[]=pngquant.intEn(((DataBufferInt)bit.getRaster().getDataBuffer()).getData(), pngquant.attr(65, 80, 1), w, h * size, 0.5f);
+  byte out[]=pngquant.intEn(((DataBufferInt)bit.getRaster().getDataBuffer()).getData(), pngquant.attr(65, 80, 1), w, h * size, 0.5f, pngquant.ARGB, false);
   return out;
  }
 }

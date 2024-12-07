@@ -31,13 +31,6 @@ public class savedump implements Runnable {
  static BMFind[] xml_finds=bmfind("xml", bom);
  static BMFind[] map_finds=bmfind("<map", null);
  static BMFind[] map_end=bmfind("/map", null);
- public static byte[][] getBytes(String str) throws UnsupportedEncodingException {
-  int l=sets.length;
-  byte[][] brr=new byte[l][];
-  for (;--l >= 0;)
-   brr[l] = str.getBytes(sets[l]);
-  return brr;
- }
  public savedump(File i, File o, UIPost u) {
   in = i;
   ou = o;
@@ -57,7 +50,7 @@ public class savedump implements Runnable {
    list[len] = new BMFind(end[i]);
   return list;
  }
- public static int[] findsMin(byte arr[], BMFind finds[], int len) {
+ public static long findsMin(byte arr[], BMFind finds[], int len) {
   int k=Integer.MAX_VALUE,v=-1;
   for (int i=0,size=finds.length;i < size;++i) {
    int j=finds[i].indexOf(arr, 0, len);
@@ -66,11 +59,10 @@ public class savedump implements Runnable {
     v = i;
    }
   }
-  if (v >= 0)
-   return new int[]{v,k};
-  return null;
+  if (v >= 0)return (v << 32) | k;
+  return -1;
  }
- public static int[] findsMax(byte arr[], BMFind finds[], int len) {
+ public static long findsMax(byte arr[], BMFind finds[], int len) {
   int k=-1,v=-1;
   for (int i=0,size=finds.length;i < size;++i) {
    int j=finds[i].indexOf(arr, 0, len);
@@ -79,9 +71,8 @@ public class savedump implements Runnable {
     v = i;
    }
   }
-  if (v >= 0)
-   return new int[]{v,k};
-  return null;
+  if (v >= 0)return (v << 32) | k;
+  return -1;
  }
  public static int readLoop(InputStream in, byte brr[], int off) throws IOException {
   int len=brr.length;
@@ -114,23 +105,23 @@ public class savedump implements Runnable {
       int offlen=blen - 15;
       //utf32-1
       boolean isxml=false;
-      int xmlj[]=null;
+      long xmlj;
       for (;;) {
        l = readLoop(gz, brr, off);
        off = 15;
        xmlj = findsMin(brr, xml_finds, l);
-       int mapj[] = findsMin(brr, map_finds, l);
-       if (isxml = (xmlj != null && (mapj == null ||  mapj[1] > xmlj[1])))break;
+       long mapj= findsMin(brr, map_finds, l);
+       if (isxml = (xmlj != -1 && mapj == -1 ||  ((int)mapj) > ((int)xmlj)))break;
        else xmlj = mapj;
-       if (xmlj != null)break;
+       if (xmlj != -1)break;
        if (l < blen)break;
        //尾部结束没有必要复制
        System.arraycopy(brr, offlen , brr, 0, off);
       }
-      if (xmlj != null) {
-       int ki=xmlj[0];
+      if (xmlj != -1) {
+       int ki=(int)(xmlj >> 32);
        Charset set = sets[ki];
-       int k = xmlj[1],lastPos=0;
+       int k = (int)xmlj,lastPos=0;
        FileOutputStream f=new FileOutputStream(ou);
        FileChannel ch=f.getChannel();
        //这里是BufferedOutputStream对于输入超过缓冲的没有优化
@@ -146,8 +137,8 @@ public class savedump implements Runnable {
         for (;;) {
          len = l - k;
          out.write(brr, k, len);
-         int obj[] = findsMax(brr, map_end, l);
-         if (obj != null)lastPos = pos + obj[1] + map_end[obj[0]].drc.length - k;
+         long obj= findsMax(brr, map_end, l);
+         if (obj != -1)lastPos = pos + ((int)obj) + map_end[(int)(obj >> 32)].drc.length - k;
          pos += len;
          k = off;
          if (l < blen)break;
@@ -156,9 +147,9 @@ public class savedump implements Runnable {
         }
         out.flush();
         ch.position(lastPos);
-        byte end[]=">".getBytes(set);
-        f.write(end);
-        ch.truncate(lastPos + end.length);
+        f.write(">".getBytes(set));
+        /*ch.truncate(lastPos + end.length);
+        ZipParallel新版本会自动截断*/
        } finally {
         out.close();
        }

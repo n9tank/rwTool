@@ -21,7 +21,6 @@ import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import org.libDeflate.Canceler;
-import org.libDeflate.ErrorHandler;
 import org.libDeflate.ParallelDeflate;
 import org.libDeflate.UIPost;
 import org.libDeflate.ZipEntryM;
@@ -32,7 +31,6 @@ import rust.loader;
 import rust.loaders;
 import rust.rwmapOpt;
 import rust.zippack;
-import rust.zipunpack;
 public class rwmodProtect extends loaderManager implements Consumer {
  HashMap lowmap;
  ConcurrentHashMap resmap;
@@ -62,7 +60,6 @@ public class rwmodProtect extends loaderManager implements Consumer {
  public static void init(HashMap<String,section> src)throws Exception {
   rwmapOpt.init(src);
   HashMap<String,String> set = src.get("ini").m;
-  zipunpack.dumpMaxSize = Integer.parseInt(set.get("dumpMax"));    
   String str=set.get("head");
   if (str.length() > 0) {
    String[] list = str.split(",");
@@ -73,12 +70,12 @@ public class rwmodProtect extends loaderManager implements Consumer {
    }while(++i < len);
    zippack.head = irr;
   }
+  zippack.zip64enmode = set.get("end").length() > 0;
   char irr[]=set.get("split").toCharArray();
   if (irr.length > 0) {
    maxSplit = irr[0] - '/';
    splitMod = (int)Math.pow(maxSplit, irr[1] - '/');  
   }
-  zippack.keepSize = set.get("keepSize").length() > 0;
   BGMShortCharCounts = Integer.parseInt(set.get("BGMS"));
   cr = set.get("chars").toCharArray();
   HashSet put=new HashSet();
@@ -265,29 +262,39 @@ public class rwmodProtect extends loaderManager implements Consumer {
     if (!"@copyFrom_skipThisSection".equals(key)) {
      String value=en2.getValue();
 	 String oldPath=null;
-	 boolean eq= oldmap != null && value.equals(oldPath = (String)oldmap.get(key)); 
+	 boolean eq= oldmap != null && value.equals(oldPath = (String)oldmap.get(key));
+     boolean iscpoy=ascopy != null && value.equals(ascopy.get(key));
      HashMap<String, Integer> res=rwmodProtect.Res;
      Object o=res.get(key);
      if (o != null) {
       int type = (Integer)o;
       String next=put.get(value, ac, cpys, buff);
       if (next != null) {
-	   String path=AllPath(next, file, type, buff, bf);
-       if (!(eq || path.equals(oldPath)) &&
-		   (oldPath != null || (!value.equals(next) && !path.equals(iniobj.copyValue(oldmap, (String)oldmap.get("@copyFromSection"), key))
-		   || (ascopy == null || !value.equals(ascopy.get(key)))))) {
+	   zipunpack.name pathret=AllPath(next, file, type, buff, bf);
+       String path=pathret.name;
+       boolean withDefine=!value.equals(next);
+       String oldPathcopy=oldmap == null ?null: iniobj.copyValue(oldmap, (String)oldmap.get("@copyFromSection"), key);
+       if (!(eq || path.equals(oldPath)) && 
+       //结果不相同
+           !(pathret.conts && (value.equals(oldPath) || value.equals(oldPathcopy))) && 
+       //如果在同一个宏的情况下，上次的值与现在的值都不属于真实路径 
+           (oldPath != null ||
+       //上次的衍射如果有值
+           (withDefine && !path.equals(oldPathcopy)
+       //路径是否与上次复制的路径相等
+           || !iscpoy))) {
+        //键是否是从节复制过来的
         if (list == null) {
          section cp=new section();
          cp.m = list = new HashMap();
          map.put(ac, cp);
         }
-		list.put(key, path);
-	   }
-	   eq = false;
-	  } else eq = true;
-	 }
+        eq = false;
+		list.put(key, pathret.conts ?value: path);
+	   } else eq = true;
+	  }
+	 } else if (!"x".equals(key) && !"y".equals(key)) eq |= iscpoy;
 	 if (list != null && eq)list.remove(key);
-	 //这里不能直接删除复制的重复键，因为@copyFromSection允许动态变化
 	}}}
   ini.with(cre, ini.str);
   ini.type = false;
@@ -337,17 +344,19 @@ public class rwmodProtect extends loaderManager implements Consumer {
   buff.append(str);
   if (i > 0)buff.append(add, i, add.length());
  }
- String AllPath(String str, CharSequence path, int type, StringBuilder buff, StringBuilder bf) throws Throwable {
+ zipunpack.name AllPath(String str, CharSequence path, int type, StringBuilder buff, StringBuilder bf) throws Throwable {
   //不予修复非法auto图像
   if (str.length() == 0 || str.equalsIgnoreCase("none") || str.equals("IGNORE") || str.equalsIgnoreCase("auto"))
-   return str;
+   return new zipunpack.name(str, true);
   str = str.replace('\\', '/');
   buff.setLength(0);
   String list[] = type < 0 ?new String[]{str}: str.split(",");
   int l=list.length,m=0;
+  boolean useReal=false;
   do {
    str = list[m].trim();
    int st=ResTry(str, type <= 0, buff);
+   useReal |= st >= 0;
    if (st >= 0) {
     if (str.startsWith("ROOT:", st)) {
      st += 5;
@@ -375,7 +384,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
    buff.append(',');
   }while(++m < l);
   buff.setLength(buff.length() - 1);
-  return buff.toString();
+  return new zipunpack.name(buff.toString(), !useReal);
  }
  int getType(String file) {
   int i=file.length() - 4;

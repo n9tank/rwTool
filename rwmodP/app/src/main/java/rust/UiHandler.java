@@ -48,7 +48,7 @@ public class UiHandler extends ErrorHandler {
    if (id == p1) {
 	call = new rwmodProtect(f, out(f, 6, "_r.rwmod"), StringUi, raw);
    } else if (id == p2)run = new zippack(f, out(f, 6, "_p.rwmod"), raw, StringUi);
-   else run = new zipunpack(f, out(f, 6, "_u.rwmod"), raw, StringUi);
+   else run = new zipunpack(f, StringUi);
   } else if (path.endsWith(".apk")) {
    call = new rwlib(f, null, new File(dir, "lib.zip"), StringUi);
   } else if (path.endsWith(".rwsave") || path.endsWith(".replay")) {
