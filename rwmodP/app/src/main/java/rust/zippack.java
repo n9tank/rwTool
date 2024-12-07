@@ -19,7 +19,6 @@ public class zippack implements Runnable {
  File ou;
  UIPost ui;
  public static int head[];
- public static boolean keepSize; 
  public boolean raw;
  public zippack(File i, File o, boolean rw, UIPost u) {
   in = i;
@@ -36,10 +35,11 @@ public class zippack implements Runnable {
   out.flag = out.openJdk8opt;
   return out;
  }
+ static boolean zip64enmode;
  public static ZipEntryOutput enZip(File ou) throws Exception {
   ZipEntryOutput out=new ZipEntryOutput(ou);
   int flag= out.openJdk8opt | out.enmode;
-  if (!keepSize)flag |= out.rcise;
+  if (zip64enmode)flag |= out.zip64enmode;
   out.flag = flag;
   int irr[]=zippack.head;
   if (irr != null) {
