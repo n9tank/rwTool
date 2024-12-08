@@ -66,7 +66,7 @@ public class savedump implements Runnable {
     v = i;
    }
   }
-  if (v > 0)return (v << 32) | k;
+  if (v >= 0)return (v << 32) | k;
   return -1;
  }
  public static long findsMax(byte arr[], BMFind finds[], int len) {
@@ -78,7 +78,7 @@ public class savedump implements Runnable {
     v = i;
    }
   }
-  if (v > 0)return (v << 32) | k;
+  if (v >= 0)return (v << 32) | k;
   return -1;
  }
  public static int readLoop(InputStream in, byte brr[], int off) throws IOException {
