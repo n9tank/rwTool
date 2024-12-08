@@ -62,7 +62,6 @@ public class rwmodProtect extends loaderManager implements Consumer {
  public static void init(HashMap<String,section> src)throws Exception {
   rwmapOpt.init(src);
   HashMap<String,String> set = src.get("ini").m;
-  zipunpack.dumpMaxSize = Integer.parseInt(set.get("dumpMax"));    
   String str=set.get("head");
   if (str.length() > 0) {
    String[] list = str.split(",");
