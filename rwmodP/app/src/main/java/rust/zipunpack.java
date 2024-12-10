@@ -68,7 +68,7 @@ public class zipunpack implements Runnable {
   this.in = in;
   this.ui = ui;
  }
- public static void readFullyAt(FileChannel fc, ByteBuffer buf, int off, int end, long pos) throws IOException {
+ public static void readFullyAt(FileChannel fc, ByteBuffer buf, int off, int end, int pos) throws IOException {
   buf.position(off);
   buf.limit(end);
   fc.position(pos);
@@ -76,29 +76,30 @@ public class zipunpack implements Runnable {
   buf.clear();
  }
  //from jdk
- long zip64pos=-1;
- long zipcenpos=-1;
+ int zipcenpos=-1;
+ int zipendpos;
  int zipcenlen;
- long zipheadoff;
+ int zipheadoff;
  TreeSet offtree;
- public ByteBuffer findEnd(FileChannel rnio) throws IOException {
+ public void findEnd(FileChannel rnio) throws IOException {
   ByteBuffer buf = ByteBuffer.allocateDirect(132);
   buf.order(ByteOrder.LITTLE_ENDIAN);
-  long ziplen=rnio.size();
-  long minHDR = (ziplen - 65557) > 0 ? ziplen - 65557 : 0;
-  long minPos = minHDR - 106;
-  for (long pos = ziplen - 128; pos >= minPos; pos -= 106) {
-   int off = pos < 0 ?(int)-pos: 0;
+  int ziplen=(int)rnio.size();
+  int minHDR = (ziplen - 65557) > 0 ? ziplen - 65557 : 0;
+  int minPos = minHDR - 106;
+  for (int pos = ziplen - 128; pos >= minPos; pos -= 106) {
+   int off = pos < 0 ?-pos: 0;
    buf.position(off);
    readFullyAt(rnio, buf, off, 128, pos + off);
    for (int i = 106; i >= off; i--) {
     if (buf.getInt(i) == 0x06054b50) {
-     short centot=buf.getShort(i + 10);
+     int centot=buf.getShort(i + 10) & 0xffff;
      int cenlen=buf.getInt(i + 12);
-     long cenoff=buf.getInt(i + 16) & 0xffffffffL;
-     long nowpos=pos + i;
-     long cenpos=nowpos - cenlen;
-     long headoff=cenpos - cenoff;
+     int cenoff=buf.getInt(i + 16);
+     int nowpos=pos + i;
+     zipendpos = nowpos;
+     int cenpos=nowpos - cenlen;
+     int headoff=cenpos - cenoff;
      int comlen = buf.getShort(i + 20) & 0xffff;
      if (nowpos + 22 + comlen != ziplen) {
       if (cenpos < 0 || headoff < 0)continue;
@@ -107,38 +108,35 @@ public class zipunpack implements Runnable {
       readFullyAt(rnio, buf, 128, 132, headoff);
       if (buf.getInt(128) != 0x04034b50)continue;
      }
-     if (cenlen == 0xffffffffL || cenoff == 0xffffffffL || centot == 0xffff) {
+     if (cenlen == 0xffffffff || cenoff == 0xffffffff || centot == 0xffff) {
       readFullyAt(rnio, buf, 0, 16, nowpos - 20);
       if (buf.getInt(0) == 0x07064b50) {
-       long zip64pos=nowpos - 12;
-       nowpos = buf.getLong(8);
+       nowpos = (int) buf.getLong(8);
        readFullyAt(rnio, buf, 0, 56, nowpos);
        if (buf.getInt(0) == 0x06064b50) {
-        long cenlen64 = buf.getLong(40);
-        long cenoff64 = buf.getLong(48);
-        long cenpos64 = nowpos - cenlen;
-        this.zip64pos = zip64pos;    
-        cenoff = cenoff64;
-        cenpos = cenpos64;
-        cenlen = (int)cenlen64;
+        cenlen = (int)buf.getLong(40);
+        cenoff = (int)buf.getLong(48);
+        cenpos = nowpos - cenlen;
        }
       }
      }
      zipcenlen = cenlen;
      zipcenpos = cenpos;
      zipheadoff = cenpos - cenoff;
-     return buf;
+     return;
     }
    }
   }
-  return buf;
+  return;
  }
+ int tsizeoff;
  public long off(long zpos) {
-  long cenpos=zipcenpos;
-  if (zpos > cenpos) {
+  if (zpos > zipcenpos + zipcenlen)
+   return zpos -= zipcenlen;
+  if (zpos > zipcenpos) {
    //用于处理特殊注入壳导致无法读取
-   intkv gen=(intkv)offtree.lower(new intkv((int)(zpos - cenpos) , 0));
-   if (gen != null)zpos = zpos + gen.v;
+   intkv gen=(intkv)offtree.lower(new intkv((int)(zpos - zipcenpos) , 0));
+   if (gen != null)zpos = zpos + gen.v + tsizeoff;
   }
   return zpos;
  }
@@ -155,24 +153,20 @@ public class zipunpack implements Runnable {
   return drc;
  }
  public ByteBuffer modifyEns(FileChannel rnio) throws IOException {
-  long headoff=zipheadoff;
-  long cenpos=zipcenpos;
+  int headoff=zipheadoff;
+  int cenpos=zipcenpos;
   int cenlen=zipcenlen;
-  boolean iszip64=zip64pos >= 0;
-  int cenlenoff = iszip64 ?56: 20;
-  cenlen += cenlenoff;
   int time=ZipEntryM.dosTime(System.nanoTime());
   Charset utf8set=StandardCharsets.UTF_8;
   Charset iso=StandardCharsets.ISO_8859_1;
   CharsetEncoder utf8seten=utf8set.newEncoder();
   CharsetEncoder isoen=iso.newEncoder();
-  cenlen -= 8;
   ByteBuffer buf = ByteBuffer.allocateDirect(cenlen);
   buf.order(ByteOrder.LITTLE_ENDIAN);
-  ByteBuffer drc=ByteBuffer.allocateDirect(cenlen + (cenlen >> 4));
+  ByteBuffer drc=ByteBuffer.allocateDirect(cenlen + (cenlen >> 4) + 22);
   drc.order(ByteOrder.LITTLE_ENDIAN);
   buf.limit(cenlen);
-  rnio.position(cenpos + 8);
+  rnio.position(cenpos);
   rnio.read(buf);
   buf.clear();
   int addall=0;
@@ -184,8 +178,9 @@ public class zipunpack implements Runnable {
   StringBuilder strbuf=new StringBuilder();
   Random ran=new Random();
   byte[] brr=null;
-  int censub=cenlen - 38 - cenlenoff;
+  int censub=cenlen - 46;
   while (off <= censub) {
+   off += 8;
    short gbit=buf.getShort(off);
    boolean utf8=(gbit & 2048) > 0;
    int mod=off += 2;
@@ -193,7 +188,7 @@ public class zipunpack implements Runnable {
    int timeIn=off += 2;
    buf.putInt(off += 4, 0);//crc
    int sizeIn=off += 4;
-   long size=buf.getInt(sizeIn) & 0xffffffffL;
+   int size=buf.getInt(sizeIn);
    long csize=buf.getInt(off += 4) & 0xffffffffL;
    if (csize == 0) {
     //这是仅储存
@@ -206,9 +201,9 @@ public class zipunpack implements Runnable {
    int exlen=buf.getShort(off += 2) & 0xffff;
    int cmlen=buf.getShort(off += 2) & 0xffff;
    off += 2;
-   long zpos=buf.getInt(off += 8) & 0xffffffffL;
-   if (zpos != 0xffffffffL)
-    buf.putInt(off, (int)(off(zpos) + headoff));
+   int zpos32=buf.getInt(off += 8);
+   if (zpos32 != 0xffffffff)
+    buf.putInt(off, (int)(off(zpos32) + headoff));
    off += 4;
    boolean emptyfile=deflate ?csize <= 2: size == 0;
    drc = copy(buf, drc, lastoff, emptyfile ?off + namelen: off);
@@ -255,31 +250,20 @@ public class zipunpack implements Runnable {
      zip64 += 4;
      if (zip64 + sz > exoff)break;
      if (ztag == 0x0001) {
-      off += 16;
+      zip64 += 16;
       sz -= 16;
       if (sz < 8 || (zip64 + 8) > exoff)break;
-      zpos = buf.getLong(off);
-      buf.putLong(off, off(zpos) + headoff);
+      if (zpos32 == 0xffffffff) {
+       int zpos = (int)(off(buf.getLong(zip64)) + headoff);
+       drc.putInt(nameIndrc + 14, zpos);
+      }
      }
     }
    }
    off += exlen;
    off += cmlen;
-   off += 8;
-  }
-  int censize=buf.position() + cenlen - lastoff;
-  if (iszip64) {
-   cenlen -= 16;
-   drc.putLong(censize - 16, censize - 56);
-   drc.putLong(censize - 8, cenpos);
-  } else {
-   cenlen -= 8;
-   drc.putInt(censize - 8, censize - 20);
-   drc.putInt(censize - 4, (int)cenpos);
   }
   drc = copy(buf, drc, lastoff, cenlen);
-  drc.position(censize);
-  drc.flip();
   return drc;
  }
  public void run() {
@@ -287,32 +271,26 @@ public class zipunpack implements Runnable {
   try {
    FileChannel rnio=new RandomAccessFile(in, "rw").getChannel();
    try {
-    ByteBuffer buf= findEnd(rnio);
-    long zipcenpos=this.zipcenpos;
-    long nowpos=zipcenpos + zipcenlen;
+    findEnd(rnio);
+    int zipcenpos=this.zipcenpos;
+    int nowpos=zipcenpos + zipcenlen;
     if (zipcenpos >= 0) {
+     int tsize=(int)(rnio.size() - nowpos);
+     tsizeoff = tsize;
      ByteBuffer cens=modifyEns(rnio);
-     long zip64pos=this.zip64pos;
-     int cenall=cens.limit();
-     int block=zip64pos >= 0 ?56: 20;
-     int censize=cenall - block + 8;
-     long offn=nowpos + censize - zipcenlen;
-     if (zip64pos >= 0 && censize != zipcenlen) {
-      buf.putLong(offn);
-      buf.flip();
-      rnio.position(zip64pos);
-      rnio.write(buf);
-     }
-     if (censize != zipcenlen) {
-      rnio.position(offn + block);
-      nowpos += block;
-      long tsize=rnio.size() - nowpos;
-      if (tsize > 0)
-       rnio.transferTo(nowpos, tsize , rnio);
-     }
-     rnio.position(zipcenpos + 8);
+     rnio.position(zipcenpos);
+     rnio.transferTo(nowpos, tsize , rnio);
+     int cenpos=zipcenpos + tsize;
+     int censize=cens.position();
+     cens.putInt(0X06054B50);
+     cens.position(censize + 12);
+     cens.putInt(censize);
+     cens.putInt(cenpos);
+     cens.position(censize + 22);
+     cens.flip();
+     rnio.position(cenpos);
      rnio.write(cens);
-     rnio.truncate(rnio.size() + censize - zipcenlen);
+     rnio.truncate(rnio.position());
     }
    } finally {
     rnio.close();

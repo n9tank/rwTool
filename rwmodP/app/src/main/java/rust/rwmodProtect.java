@@ -33,6 +33,7 @@ import rust.loaders;
 import rust.rwmapOpt;
 import rust.zippack;
 import rust.zipunpack;
+import android.util.Log;
 public class rwmodProtect extends loaderManager implements Consumer {
  HashMap lowmap;
  ConcurrentHashMap resmap;
@@ -72,6 +73,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
    }while(++i < len);
    zippack.head = irr;
   }
+  zippack.zip64enmode = set.get("end").length() > 0;
   char irr[]=set.get("split").toCharArray();
   if (irr.length > 0) {
    maxSplit = irr[0] - '/';
@@ -273,7 +275,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
       if (next != null) {
 	   String path=AllPath(next, file, type, buff, bf);
        if (!(eq || path.equals(oldPath)) &&
-		   (oldPath != null || (!value.equals(next) && !path.equals(iniobj.copyValue(oldmap, (String)oldmap.get("@copyFromSection"), key))
+		   (oldPath != null || (!value.equals(next) && (oldmap == null || !path.equals(iniobj.copyValue(oldmap, (String)oldmap.get("@copyFromSection"), key)))
 		   || (ascopy == null || !value.equals(ascopy.get(key)))))) {
         if (list == null) {
          section cp=new section();
@@ -413,6 +415,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
   final UiHandler err = new UiHandler(UiHandler.ui_pool, null, back);
   err.can = new Canceler(){
    public void cancel() {
+    Log.e("rwTool", "cancel");
 	err.cancel();
 	rwmodProtect.this.cancel();
    }
