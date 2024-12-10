@@ -4,16 +4,18 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.CharBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
+import java.nio.charset.CharsetEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.TreeSet;
+import org.libDeflate.BufOutput;
 import org.libDeflate.UIPost;
 import org.libDeflate.ZipEntryM;
 import rust.UiHandler;
-import org.libDeflate.BufOutput;
 
 public class zipunpack implements Runnable {
  public static class intkv implements Comparable {
@@ -28,7 +30,6 @@ public class zipunpack implements Runnable {
   }
  }
  File in;
- UIPost ui;
  public static class name {
   String name;
   boolean conts;
@@ -62,6 +63,7 @@ public class zipunpack implements Runnable {
   }
   return new name(name, conts);
  }
+ UIPost ui;
  public zipunpack(File in, UIPost ui) {
   this.in = in;
   this.ui = ui;
@@ -76,7 +78,7 @@ public class zipunpack implements Runnable {
  //from jdk
  long zip64pos=-1;
  long zipcenpos=-1;
- long zipcenlen;
+ int zipcenlen;
  long zipheadoff;
  TreeSet offtree;
  public ByteBuffer findEnd(FileChannel rnio) throws IOException {
@@ -92,7 +94,7 @@ public class zipunpack implements Runnable {
    for (int i = 106; i >= off; i--) {
     if (buf.getInt(i) == 0x06054b50) {
      short centot=buf.getShort(i + 10);
-     long cenlen=buf.getInt(i + 12) & 0xffffffffL;
+     int cenlen=buf.getInt(i + 12);
      long cenoff=buf.getInt(i + 16) & 0xffffffffL;
      long nowpos=pos + i;
      long cenpos=nowpos - cenlen;
@@ -105,7 +107,7 @@ public class zipunpack implements Runnable {
       readFullyAt(rnio, buf, 128, 132, headoff);
       if (buf.getInt(128) != 0x04034b50)continue;
      }
-     readFullyAt(rnio, buf, 0, 20, nowpos - 20);
+     readFullyAt(rnio, buf, 0, 16, nowpos - 20);
      if (buf.getInt(0) == 0x07064b50) {
       long zip64pos=nowpos - 12;
       nowpos = buf.getLong(8);
@@ -121,7 +123,7 @@ public class zipunpack implements Runnable {
         this.zip64pos = zip64pos;    
         cenoff = cenoff64;
         cenpos = cenpos64;
-        cenlen = cenlen64;
+        cenlen = (int)cenlen64;
        }
       }
      }
@@ -134,12 +136,6 @@ public class zipunpack implements Runnable {
   }
   return buf;
  }
- //我不知道为什么ISO_8859_1对于一些字符返回true
- public static boolean canEncode(byte[] cs, int len) {
-  for (int i=0;i < len;++i)
-   if (cs[i] > 0xff)return false;
-  return true;
- }
  public long off(long zpos) {
   long cenpos=zipcenpos;
   if (zpos > cenpos) {
@@ -149,44 +145,67 @@ public class zipunpack implements Runnable {
   }
   return zpos;
  }
+ public static ByteBuffer copy(ByteBuffer buf, ByteBuffer drc, int start, int end) {
+  int len=end - start;
+  if (drc.remaining() < len) {
+   int cy=drc.capacity();
+   drc = BufOutput.copy(drc, Math.max(len, cy + (cy >> 1)));
+  }
+  buf.position(start);
+  buf.limit(end);
+  drc.put(buf);
+  buf.clear();
+  return drc;
+ }
  public ByteBuffer modifyEns(FileChannel rnio) throws IOException {
   long headoff=zipheadoff;
   long cenpos=zipcenpos;
-  long cenlen=zipcenlen;
+  int cenlen=zipcenlen;
+  boolean iszip64=zip64pos >= 0;
+  int cenlenoff = iszip64 ?56: 20;
+  cenlen += cenlenoff;
   int time=ZipEntryM.dosTime(System.nanoTime());
   Charset utf8set=StandardCharsets.UTF_8;
   Charset iso=StandardCharsets.ISO_8859_1;
-  ByteBuffer buf = ByteBuffer.allocateDirect((int)(cenlen + (cenlen >> 4)));
+  CharsetEncoder utf8seten=utf8set.newEncoder();
+  CharsetEncoder isoen=iso.newEncoder();
+  cenlen -= 8;
+  ByteBuffer buf = ByteBuffer.allocateDirect(cenlen);
   buf.order(ByteOrder.LITTLE_ENDIAN);
-  int bufrem=(int)cenlen;
-  buf.limit(bufrem);
-  rnio.position(cenpos);
+  ByteBuffer drc=ByteBuffer.allocateDirect(cenlen + (cenlen >> 4));
+  drc.order(ByteOrder.LITTLE_ENDIAN);
+  buf.limit(cenlen);
+  rnio.position(cenpos + 8);
   rnio.read(buf);
   buf.clear();
-  int lastrem=bufrem;
+  int addall=0;
   int off=0;
+  int lastoff=0;
   HashSet set=new HashSet();
   TreeSet<intkv> tree=new TreeSet();
   offtree = tree;
   StringBuilder strbuf=new StringBuilder();
   Random ran=new Random();
   byte[] brr=null;
-  while (off + 46 <= cenlen) {
-   off += 8;
+  int censub=cenlen - 38 - cenlenoff;
+  while (off <= censub) {
    short gbit=buf.getShort(off);
    boolean utf8=(gbit & 2048) > 0;
    int mod=off += 2;
+   boolean deflate=buf.getShort(mod) != 0;
    int timeIn=off += 2;
    buf.putInt(off += 4, 0);//crc
    int sizeIn=off += 4;
-   int csize=buf.getInt(off += 4);
+   long size=buf.getInt(sizeIn) & 0xffffffffL;
+   long csize=buf.getInt(off += 4) & 0xffffffffL;
    if (csize == 0) {
     //这是仅储存
+    deflate = false;
     buf.putShort(mod, (short)0);
-    buf.putInt(off, buf.getInt(sizeIn));
    }
-   int nameIn=off += 4;
-   int namelen=buf.getShort(nameIn) & 0xffff;
+   off += 4;
+   int nameIndrc=off + addall;
+   int namelen=buf.getShort(off) & 0xffff;
    int exlen=buf.getShort(off += 2) & 0xffff;
    int cmlen=buf.getShort(off += 2) & 0xffff;
    off += 2;
@@ -194,77 +213,77 @@ public class zipunpack implements Runnable {
    if (zpos != 0xffffffffL)
     buf.putInt(off, (int)(off(zpos) + headoff));
    off += 4;
+   boolean emptyfile=deflate ?csize <= 2: size == 0;
+   drc = copy(buf, drc, lastoff, emptyfile ?off + namelen: off);
    buf.position(off);
    if (brr == null || brr.length < namelen)
     brr = new byte[BufOutput.tableSizeFor(namelen)];
    buf.get(brr, 0, namelen);
-   utf8 &= !canEncode(brr, namelen);
    Charset code=utf8 ?utf8set: iso;
-   String str=new String(brr, code);
-   zipunpack.name type=getName(str, set, strbuf, ran);
-   if (type.conts)buf.putInt(timeIn, time);
-   ByteBuffer nameBuf = code.encode(type.name);
-   int nlen=nameBuf.limit();
-   buf.putShort(nameIn, (short)nlen);
-   nameBuf.limit(Math.min(nlen, namelen));
-   buf.position(off);
-   buf.put(nameBuf);
-   int fpos=buf.position();
-   int addlen=nlen - namelen;
-   if (addlen > 0) {
-    int cy=buf.capacity();
-    int nsize=bufrem + addlen;
-    if (cy < nsize) {
-     buf.flip();
-     ByteBuffer newbuf = ByteBuffer.allocateDirect(Math.max(nsize, (cy << 2) - (cy >> 1)));
-     newbuf.put(buf);
-     buf.limit(bufrem);
-     newbuf.put(nameBuf);
-     newbuf.put(buf);
-     buf = newbuf;
-     nameBuf = null;
-    }
+   String str=new String(brr, 0, namelen, code);
+   int addlen;
+   /*
+    不要丢弃空文件，理论上注释以及扩展字段也能塞条目
+    将条目塞在名称上逻辑会罢工。
+    */
+   if (!emptyfile) {
+    zipunpack.name type=getName(str, set, strbuf, ran);
+    if (type.conts)buf.putInt(timeIn, time);
+    CharBuffer nstr=CharBuffer.wrap(type.name);
+    CharsetEncoder codeen=utf8 ?utf8seten: isoen;
+    int pos=drc.position();
+    int cy=drc.capacity();
+    while (codeen.encode(nstr, drc, true).isOverflow())
+     drc = BufOutput.copy(drc, cy + (cy >> 1));
+    while (codeen.flush(drc).isOverflow())
+     drc = BufOutput.copy(drc, cy + (cy >> 1));
+    codeen.reset();
+    addlen = drc.position() - pos - namelen;
+    drc.putShort(nameIndrc, (short)(namelen + addlen));
+    addall += addlen;
+   } else {
+    set.add(str);
+    addlen = 0;
    }
-   if (nameBuf != null) {
-    ByteBuffer copy= buf.duplicate();
-    copy.position(off + namelen);
-    copy.limit(bufrem);
-    if (addlen > 0)
-     buf.position(fpos + addlen);
-    buf.put(copy);
-    if (addlen > 0) {
-     buf.position(fpos);
-     buf.put(nameBuf);
-    }
-   }
-   int lastoff=bufrem - lastrem;
-   bufrem += addlen;
    off += namelen;
-   int offlen=lastoff + addlen;
-   if (offlen != lastoff)
-    tree.add(new intkv(off - lastoff - 1, offlen));
-   off += addlen;
-   int zip64=off;
-   int exoff=exlen + off;
-   while (zip64 + 4 < exoff) {
-    short ztag=buf.getShort(zip64);
-    int sz=buf.getShort(zip64 + 2) & 0xffff;
-    zip64 += 4;
-    if (zip64 + sz > exoff)break;
-    if (ztag == 0x0001) {
-     off += 16;
-     sz -= 16;
-     if (sz < 8 || (zip64 + 8) > exoff)break;
-     zpos = buf.getLong(off);
-     buf.putLong(off, off(zpos) + headoff);
+   lastoff = off;
+   if (!emptyfile) {
+    if (addlen != 0)
+     tree.add(new intkv(off - 1, addall)); 
+    int zip64=off;
+    int exoff=exlen + off;
+    while (zip64 + 4 < exoff) {
+     short ztag=buf.getShort(zip64);
+     int sz=buf.getShort(zip64 + 2) & 0xffff;
+     zip64 += 4;
+     if (zip64 + sz > exoff)break;
+     if (ztag == 0x0001) {
+      off += 16;
+      sz -= 16;
+      if (sz < 8 || (zip64 + 8) > exoff)break;
+      zpos = buf.getLong(off);
+      buf.putLong(off, off(zpos) + headoff);
+     }
     }
    }
    off += exlen;
    off += cmlen;
+   off += 8;
   }
-  buf.rewind();
-  buf.limit(bufrem);
-  return buf;
+  int censize=buf.position() + cenlen - lastoff;
+  if (iszip64) {
+   cenlen -= 16;
+   drc.putLong(censize - 16, censize - 56);
+   drc.putLong(censize - 8, cenpos);
+  } else {
+   cenlen -= 8;
+   drc.putInt(censize - 8, censize - 20);
+   drc.putInt(censize - 4, (int)cenpos);
+  }
+  drc = copy(buf, drc, lastoff, cenlen);
+  drc.position(censize);
+  drc.flip();
+  return drc;
  }
  public void run() {
   Exception e=null;
@@ -276,35 +295,25 @@ public class zipunpack implements Runnable {
     long nowpos=zipcenpos + zipcenlen;
     if (zipcenpos >= 0) {
      ByteBuffer cens=modifyEns(rnio);
-     int censize=cens.limit();
      long zip64pos=this.zip64pos;
-     long offn=off(nowpos);
-     if (zip64pos < 0) {
-      buf.putInt(censize);
-      buf.putInt((int)zipcenpos);
-      rnio.position(nowpos + 12);
-     } else {
-      if (censize != zipcenlen) {
-       buf.putLong(offn);
-       buf.flip();
-       rnio.position(zip64pos);
-       rnio.write(buf);
-       buf.clear();
-      }
-      buf.putLong(censize);
-      buf.putLong(zipcenpos);
-      rnio.position(nowpos + 40);
+     int cenall=cens.limit();
+     int block=zip64pos >= 0 ?56: 20;
+     int censize=cenall - block + 8;
+     long offn=nowpos + censize - zipcenlen;
+     if (zip64pos >= 0 && censize != zipcenlen) {
+      buf.putLong(offn);
+      buf.flip();
+      rnio.position(zip64pos);
+      rnio.write(buf);
      }
-     buf.flip();
-     rnio.write(buf);
      if (censize != zipcenlen) {
-      rnio.position(offn);
+      rnio.position(offn + block);
+      nowpos += block;
       long tsize=rnio.size() - nowpos;
-      if (tsize > 0) {
+      if (tsize > 0)
        rnio.transferTo(nowpos, tsize , rnio);
-      }
      }
-     rnio.position(zipcenpos);
+     rnio.position(zipcenpos + 8);
      rnio.write(cens);
      rnio.truncate(rnio.size() + censize - zipcenlen);
     }
