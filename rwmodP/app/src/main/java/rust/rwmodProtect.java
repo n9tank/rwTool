@@ -72,6 +72,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
    }while(++i < len);
    zippack.head = irr;
   }
+  zippack.zip64enmode = set.get("end").length() > 0;
   char irr[]=set.get("split").toCharArray();
   if (irr.length > 0) {
    maxSplit = irr[0] - '/';

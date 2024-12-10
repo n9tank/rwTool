@@ -36,9 +36,11 @@ public class zippack implements Runnable {
   out.flag = out.openJdk8opt;
   return out;
  }
+ static boolean zip64enmode;
  public static ZipEntryOutput enZip(File ou) throws Exception {
   ZipEntryOutput out=new ZipEntryOutput(ou);
   int flag= out.openJdk8opt | out.enmode;
+  if (zip64enmode)flag |= out.zip64enmode;
   if (!keepSize)flag |= out.rcise;
   out.flag = flag;
   int irr[]=zippack.head;
