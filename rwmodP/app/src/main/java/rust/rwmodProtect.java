@@ -161,16 +161,12 @@ public class rwmodProtect extends loaderManager implements Consumer {
   if (ini == 0)buff.append('/');
   return buff.toString();
  }
- public void appstr(String str, int last, loader put, StringBuilder buff) {
-  String add=put.str;
-  int st=0;  
+ public void appstr(String str, loader put, StringBuilder buff) {
+  String add=put.str; 
   if (put.task == null)buff.append("CORE:");
-  else if (maxSplit > 0) {
-   if (add.regionMatches(0, str, 0, last))
-    st = add.lastIndexOf('/', add.length() - 3) + 1;
-   else buff.append("ROOT:");
-  }
-  buff.append(add, st, add.length());
+  else if (maxSplit > 0)
+   buff.append("ROOT:");
+  buff.append(add);
   buff.append(',');
  } 
  public static boolean with(loader copy[], loader all) {
@@ -238,11 +234,10 @@ public class rwmodProtect extends loaderManager implements Consumer {
     map.put("core", cp);
    } else core = cp.m;
    String str=ini.str;
-   int last=str.lastIndexOf('/', str.length() - 3); 
    if (alls != null && !with(orr, alls))
-    appstr(str, last, alls, buff);
+    appstr(str, alls, buff);
    for (loader obj:orr)
-    appstr(str, last, obj, buff);  
+    appstr(str, obj, buff);  
    buff.setLength(buff.length() - 1);
    core.put("copyFrom", buff.toString());
   }
@@ -293,7 +288,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
 		list.put(key, pathret.conts ?value: path);
 	   } else eq = true;
 	  }
-	 } else if (!"x".equals(key) && !"y".equals(key)) eq |= iscpoy;
+	 } else if (!"x".equals(key) && !"y".equals(key)) eq |= oldPath == null && iscpoy;
 	 if (list != null && eq)list.remove(key);
 	}}}
   ini.with(cre, ini.str);

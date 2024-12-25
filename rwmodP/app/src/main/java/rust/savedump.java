@@ -6,8 +6,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.zip.GZIPInputStream;
@@ -24,49 +25,26 @@ public class savedump implements Runnable {
   StandardCharsets.UTF_16LE,
   Charset.forName("UTF-32BE"),
   Charset.forName("UTF-32LE")};
- static byte[][] bom=new byte[][]{
-  new byte[]{(byte)0,(byte)0,(byte)0xfe,(byte)0xff},
-  new byte[]{(byte)0xff,(byte)0xfe,(byte)0,(byte)0},
- };
- static BMFind[] xml_finds=bmfind("xml", bom);
- static BMFind[] map_finds=bmfind("<map", null);
- static BMFind[] map_end=bmfind("/map", null);
+ static BMFind[] xml_finds=bmfind("xml", false);
+ static BMFind[] map_finds=bmfind("<map", false);
+ static BMFind[] map_end=bmfind("/map", true);
  public savedump(File i, File o, UIPost u) {
   in = i;
   ou = o;
   ui = u;
  }
- public static BMFind[] bmfind(String str, byte end[][]) {
+ public static BMFind[] bmfind(String str, boolean re) {
   int len=sets.length;
-  int endlen=0;
-  if (end != null) {
-   endlen = end.length;
-   len -= endlen;
-  }
   BMFind[] list=new BMFind[len];
   for (int i=0;i < len;++i)
-   list[i] = new BMFind(str.getBytes(sets[i]));
-  for (int i=0;len < endlen;++len,++i)
-   list[len] = new BMFind(end[i]);
+   list[i] = new BMFind(str.getBytes(sets[i]), re);
   return list;
  }
- public static long findsMin(byte arr[], BMFind finds[], int len) {
+ public static long findsMin(byte arr[], BMFind finds[], int end) {
   int k=Integer.MAX_VALUE,v=-1;
   for (int i=0,size=finds.length;i < size;++i) {
-   int j=finds[i].indexOf(arr, 0, len);
+   int j=finds[i].indexOf(arr, 0, end);
    if (j < k) {
-    k = j;
-    v = i;
-   }
-  }
-  if (v >= 0)return (v << 32) | k;
-  return -1;
- }
- public static long findsMax(byte arr[], BMFind finds[], int len) {
-  int k=-1,v=-1;
-  for (int i=0,size=finds.length;i < size;++i) {
-   int j=finds[i].indexOf(arr, 0, len);
-   if (j > k) {
     k = j;
     v = i;
    }
@@ -122,34 +100,50 @@ public class savedump implements Runnable {
        int ki=(int)(xmlj >> 32);
        Charset set = sets[ki];
        int k = (int)xmlj,lastPos=0;
-       FileOutputStream f=new FileOutputStream(ou);
-       FileChannel ch=f.getChannel();
+       FileChannel ch=new FileOutputStream(ou).getChannel();
        //这里是BufferedOutputStream对于输入超过缓冲的没有优化
        //避免余剩字节导致的低于4k写出。
        ByteBufIo out=new ByteBufIo(ch, 8192);
        try {
-        int pos=0;
-        byte[] head=(isxml ?xml_finds: map_finds)[ki].drc;
-        byte[] outhead=isxml && ki <= 2 ?"<?xml".getBytes(set): head;
-        pos = outhead.length;
-        out.write(outhead);
-        k += head.length;
+        if (isxml) {
+         out.write(set.encode("<?xml"));
+         k += xml_finds[ki].drc.length;
+         i = k;
+        } else i = k + map_finds[ki].drc.length;
+        int pos=out.buf.position();
+        ByteBuffer buf=ByteBuffer.wrap(brr);
         for (;;) {
-         len = l - k;
-         out.write(brr, k, len);
-         long obj= findsMax(brr, map_end, l);
-         if (obj != -1)lastPos = pos + ((int)obj) + map_end[(int)(obj >> 32)].drc.length - k;
-         pos += len;
+         buf.limit(l);
+         buf.position(k);
+         out.write(buf);
+         BMFind[] finds=map_end;
+         int fk=-1;
+         for (int fi=0,size=finds.length;fi < size;++fi) {
+          int j = finds[fi].lastIndexOf(brr, i, l);
+          if (j > fk) {
+           fk = j;
+           set = sets[fi];
+          }
+         }
+         i = 0;
+         if (fk != -1)lastPos = pos + fk - k;
+         pos += l - k;
          k = off;
          if (l < blen)break;
          System.arraycopy(brr, offlen , brr, 0, off);
          l = readLoop(gz, brr, off);
         }
-        out.flush();
-        ch.position(lastPos);
-        f.write(">".getBytes(set));
-        /*ch.truncate(lastPos + end.length);
-        ZipParallel新版本会自动截断*/
+        int offpos=(int)(lastPos - ch.position());
+        WritableByteChannel f;
+        if (offpos < 0) {
+         ch.position(lastPos);
+         out.buf = null;
+         f = ch;
+        } else {
+         out.buf.position(offpos);
+         f = out;
+        }
+        f.write(set.encode(">"));
        } finally {
         out.close();
        }

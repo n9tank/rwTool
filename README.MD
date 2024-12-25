@@ -41,7 +41,5 @@
 
 - split 文件路径“/”分割计算，为空禁用，格式：NN。(0-9)，最大分割数-1，最大分割长度-1。
 
-- dumpMax 在解压时超过该长度中断条目。
-
 # [构建](BUILD.MD)
 - [下载](https://gitee.com/n9tank/rwTool/releases)

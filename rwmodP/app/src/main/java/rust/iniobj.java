@@ -1,4 +1,5 @@
 package rust;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -7,22 +8,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.Collections;
-import java.util.Arrays;
 
 public class iniobj {
  public HashMap put;
  public HashMap gl;
  public HashMap ascache;
- public iniobj() {
-  put = new HashMap();
- }
  public static HashMap clone(HashMap map) {
-  HashMap put=new HashMap();
+  HashMap put=(HashMap)map.clone();
   for (Map.Entry<String,section> en:(Set<Map.Entry<String,section>>)map.entrySet()) {
    section cp=new section();
    cp.m = (HashMap)en.getValue().m.clone();
-   put.put(en.getKey(), cp);
+   en.setValue(cp);
   }
   return put;
  }
@@ -57,37 +53,37 @@ public class iniobj {
  public void put(iniobj drc) {
   put(put, drc.put);
  }
- void asFor(section cpy, String key) {
+ void asFor(section cpy) {
   HashMap map=put;
   HashMap hash=cpy.m;
   String str = (String)hash.remove("@copyFromSection");
-  if (str != null && !str.equals("IGNORE")) {
+  //这里不允许尾部仅有“,”的占位符
+  if (str != null && str.length() > 0 && !str.equals("IGNORE")) {
+   str = str.replace(" ", "");
+   //(移除trim支持，用于优化)
    String list[]=str.split(",");
    int i=list.length;
    HashMap copy=null;
    if (i == 1) {
-	String vl=list[0].trim();
+	String vl=list[0];
 	section set=(section)map.get(vl);
 	if (set != null) {
-	 asFor(set, vl);
+	 asFor(set);
 	 copy = set.m;
 	}
    } else {
     i = 0;
-    for (int len=list.length;i < len;++i)
-     list[i] = list[i].trim();
-    Strings strs=new Strings(list);
-    copy = (HashMap)ascache.get(strs);
+    copy = (HashMap)ascache.get(str);
     if (copy == null) {
      copy = new HashMap();
      for (String vl:list) {
       section set=(section)map.get(vl);
       if (set != null) {
-       asFor(set, vl);
+       asFor(set);
        copy.putAll(set.m);
       }
      }
-     ascache.put(strs, copy);
+     ascache.put(str, copy);
     }
    }
    if (copy != null) {
@@ -101,11 +97,38 @@ public class iniobj {
  public void as() {
   globalMap();
   ascache = new HashMap();
-  Set<Map.Entry> se=(Set<Map.Entry>)put.entrySet();
-  for (Map.Entry<String,Object> en2:se)
-   asFor((section)en2.getValue(), en2.getKey());
+  for (section v:(Collection<section>)put.values())
+   asFor(v);
   ascache = null;
  }
+ /*
+ public HashMap[] merge(String list[]) {
+  int len=list.length;
+  HashMap copy[]=new HashMap[len];
+  HashMap ini=put;
+  int c=0;
+  for (int i=0,j=list.length;i < j;i++) {
+   int v=j;
+   for (;v > i;--v) {
+    String strs=String.join(",", Arrays.copyOfRange(list, i, v));
+    HashMap map= (HashMap)ascache.get(strs);
+    if (map != null) {
+     i = v;
+     copy[c++] = map;
+     break;
+    }
+   }
+   if (v == i) {
+    String key=list[i];
+    section map=(section)ini.get(key);
+    if (map != null) {
+     asFor(map);
+     copy[c++] = map.m;
+    }
+   }
+  }
+  return copy;
+ }*/
  static final HashSet set;
  static{
   HashSet sset=new HashSet();
@@ -118,10 +141,10 @@ public class iniobj {
  static final Pattern find=Pattern.compile("[a-zA-Z_][0-9a-zA-Z_.]*");
  static final Pattern mathExp=Pattern.compile("[-+/*^%()]");
  public static String copyValue(HashMap<String,section> ini, String list, String k) {
-  if (list != null && ! list.equals("IGNORE")) {
-   String keys[]=list.split(",");
+  if (list != null && list.length() > 0 && ! list.equals("IGNORE")) {
+   String keys[]=list.replace(" " , "").split(",");
    for (int i=keys.length;--i >= 0;) {
-	section kvs= ini.get(keys[i].trim());
+	section kvs= ini.get(keys[i]);
 	if (kvs == null)continue;
 	HashMap<String,String> kvmap=kvs.m;
 	String obj=kvmap.get(k);
