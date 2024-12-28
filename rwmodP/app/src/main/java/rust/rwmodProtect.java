@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import org.libDeflate.Canceler;
 import org.libDeflate.ParallelDeflate;
 import org.libDeflate.UIPost;
 import org.libDeflate.ZipEntryM;
@@ -31,6 +30,7 @@ import rust.loader;
 import rust.loaders;
 import rust.rwmapOpt;
 import rust.zippack;
+import org.libDeflate.Canceler;
 public class rwmodProtect extends loaderManager implements Consumer {
  HashMap lowmap;
  ConcurrentHashMap resmap;
@@ -57,6 +57,13 @@ public class rwmodProtect extends loaderManager implements Consumer {
   str = za.getName();
   return addLoder(za, str, str, null, getType(str) == 4);
  }
+ public static HashSet toSet(String str) {
+  String[] list=str.split(",");
+  int len=list.length;
+  HashSet add=new HashSet(len + (len >> 1));
+  Collections.addAll(add, list);  
+  return add;
+ }
  public static void init(HashMap<String,section> src)throws Exception {
   rwmapOpt.init(src);
   HashMap<String,String> set = src.get("ini").m;
@@ -70,6 +77,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
    }while(++i < len);
    zippack.head = irr;
   }
+  loader.boolset = toSet(set.get("bool"));
   zippack.zip64enmode = set.get("end").length() > 0;
   char irr[]=set.get("split").toCharArray();
   if (irr.length > 0) {
@@ -78,7 +86,6 @@ public class rwmodProtect extends loaderManager implements Consumer {
   }
   BGMShortCharCounts = Integer.parseInt(set.get("BGMS"));
   cr = set.get("chars").toCharArray();
-  HashSet put=new HashSet();
   HashMap res=new HashMap();
   Res = res;
   putType(res, set, "image", -1);
@@ -180,31 +187,25 @@ public class rwmodProtect extends loaderManager implements Consumer {
   }
   return false;
  }
- UiHandler asyncOut;
  public boolean asyncAdd(loader lod) throws IOException {
   boolean ok=!lod.type;
   if (ok || lod.inSet())return ok;
-  new iniTask(this, lod, asyncOut);
+  new iniTask(this, lod, uih);
   return ok;
  }
  public HashMap[] merge(loaders key) {
   loader[] list=key.copy;
   int len=list.length;
   HashMap copy[]=new HashMap[len];
+  Comparables cms=new Comparables();
   int c=0;
   wh:
   for (int i=0;i < len;) {
    int v=len;
    int n;
    for (;(n = (v - 1)) > i;v = n) {
-    int lens=v - i;
-    int off=i == 0 ?0: 1;
-    loader keys[];
-    if (lens == len) {
-     keys = new loader[off + lens];
-     System.arraycopy(list, i, keys, off, lens);
-    } else keys = list;
-    Object obj= oldobj.get(new loaders(keys));
+    cms.set(list, list[i] == null ?i + 1: i, v);
+    Object obj= oldobj.get(cms);
     if (obj != null) {
      if (obj instanceof loader)return null;
      i = v;
@@ -232,7 +233,9 @@ public class rwmodProtect extends loaderManager implements Consumer {
   HashMap oldsrc=null;
   int len=maps.length;
   if (len > 1 && maps[1] != null) {
-   Object obj=oldobj.putIfAbsent(copy, ini);
+   Comparables ckey=new Comparables();
+   ckey.set(orr, orr[0] == null ?1: 0, orr.length);
+   Object obj=oldobj.putIfAbsent(ckey, ini);
    if (obj != null) {
     if (obj instanceof loader)return false;
     oldsrc = (HashMap)obj;
@@ -243,7 +246,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
      if (lod != null)
       iniobj.put(oldsrc, lod);
     }
-    oldobj.put(copy, oldsrc);
+    oldobj.put(ckey, oldsrc);
    }
   } else oldsrc = maps[0];
   StringBuilder buff=new StringBuilder();
@@ -432,32 +435,34 @@ public class rwmodProtect extends loaderManager implements Consumer {
   loader lod=(loader)obj;
   lod.put.as();
  }
+ int endtype;
  public void end() {
-  List vl=Arrays.asList(Zipmap.values().toArray());
-  vl.parallelStream().forEach(this);
-  Collections.shuffle(vl);
-  StringBuilder bf=new StringBuilder();
-  for (Object obj:vl) {
-   loader lod=(loader)obj;
-   lod.str = safeName(lod.isini ?4: 1, bf);
+  switch (endtype++) {
+   case 0:
+    List vl=Arrays.asList(Zipmap.values().toArray());
+    vl.parallelStream().forEach(this);
+    Collections.shuffle(vl);
+    StringBuilder bf=new StringBuilder();
+    for (Object obj:vl) {
+     loader lod=(loader)obj;
+     lod.str = safeName(lod.isini ?4: 1, bf);
+    }
+    UiHandler err = new UiHandler(UiHandler.ui_pool, this, back);
+    uih = err;
+    try {
+     for (Object obj:vl)
+      asyncAdd((loader)obj);
+    } catch (Exception e) {
+    }
+    err.pop();
+    break;
+   case 1:
+    cre.on.pop();
+    break;
+   default:
+    cre.end();
+    break;
   }
-  final UiHandler err = new UiHandler(UiHandler.ui_pool, null, back);
-  err.can = new Canceler(){
-   public void cancel() {
-	err.cancel();
-	rwmodProtect.this.cancel();
-   }
-   public void end() {
-	UiHandler.close(cre);
-   }
-  };
-  asyncOut = err;
-  try {
-   for (Object obj:vl)
-	asyncAdd((loader)obj);
-  } catch (Exception e) {
-  }
-  err.pop();
  }
  public Object call() {
   oldobj = new ConcurrentHashMap();
@@ -474,8 +479,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
    ZipFile zip=new ZipFile(In);
    Zip = zip;
    out = zippack.enZip(Ou);
-   ParallelDeflate cr = new ParallelDeflate(out, true);
-   cr.on = new UiHandler(cr.pool, cr, back, zip);
+   final ParallelDeflate cr = new ParallelDeflate(out, true);
+   cr.on = new UiHandler(cr.pool, this, back, zip);
    cre = cr;
    String name=null;
    HashSet rset=new HashSet();

@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -17,11 +18,48 @@ import org.libDeflate.ParallelDeflate;
 import org.libDeflate.ZipUtil;
 import rust.loader;
 import rust.loaders;
-public class loader extends IoWriter implements Callable,Runnable {
+public class loader extends IoWriter implements Callable,Runnable,Comparable {
+ public int compareTo(Object o) {
+  if (this != o) {
+   loader p2=((loader)o);
+   String path=this.src;
+   int i = path.compareTo(p2.src);
+   if (i != 0)return i;
+   //对于依赖库仍需避免冲突
+   if (path == "//") {
+    i = this.str.compareTo(p2.str);
+    if (i != 0)return i;  
+   }
+  }
+  return 0;
+ }
  public static int utf8len(CharSequence str) {
   int len=str.length() ;
   return (len << 1) - (len >> 1);
   //1.5倍容量，最大3倍
+ }
+ public static HashSet boolset;
+ public static boolean isBool(String key) {
+  if (boolset.contains(key))return true;
+  int i=key.indexOf('_');
+  if (i > 0) {
+   if (boolset.contains(key.substring(0, i + 1))) {
+    int j=key.lastIndexOf('_');
+    String end=key.substring(j + 1);
+    return boolset.contains(end);
+   }
+  }
+  return false;
+ }
+ public static String replace(String key, String value) {
+  //现在不允许bool通过${section.key}访问，因为这与优化冲突
+  //你仍可以将bool值使用宏 key:${bool}
+  if (value.equalsIgnoreCase("true")) {
+   if (isBool(key))return "1";
+  } else if (value.equalsIgnoreCase("false")) {
+   if (isBool(key))return "0";
+  }
+  return value;
  }
  public void with(ParallelDeflate para, String str) throws Exception {
   boolean st=false;
@@ -129,6 +167,7 @@ public class loader extends IoWriter implements Callable,Runnable {
       }
       String key=value[0].trim();
       String set=value[1].trim();
+      set = replace(key, set);
       list.put(key, set);
      }
     }

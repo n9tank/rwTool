@@ -48,11 +48,12 @@ public abstract class loaderManager implements Callable,Canceler {
   return lod;
  }
  public void cancel() {
-  if (uih.cancel()) {
-   ParallelDeflate cre=this.cre;
-   if (cre != null)cre.cancel();
-   uih.ui = back;
-  }
+  uih.ui = back;
+  ParallelDeflate cre=this.cre;   
+  if (cre != null)
+   uih.err.addAll(cre.on.err);
+  if (uih.cancel() && cre != null)
+   cre.cancel();
  }
  public abstract loader getLoder(String str) throws Throwable;
  public static void lod(iniobj ini, loader orr[]) {

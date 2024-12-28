@@ -40,11 +40,9 @@ public class rwlib extends loaderManager implements UIPost {
  public void end() {
   UiHandler.close(Zip);
   File ou=Ou;
-  if (ou != null) {
-   try {
-    cre.close();
-   } catch (Exception e) {}
-  } else accept(uih.err);
+  if (ou != null)
+   cre.on.pop();
+  else accept(uih.err);
   tolow(Zipmap);
  }
  public static void gc(loader lod) {

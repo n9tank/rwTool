@@ -1,13 +1,12 @@
 package rust;
+import java.io.File;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.zip.ZipFile;
 import org.libDeflate.Canceler;
 import org.libDeflate.ErrorHandler;
 import org.libDeflate.UIPost;
-import java.io.File;
-import java.util.List;
-import java.util.Collections;
 
 public class UiHandler extends ErrorHandler {
  public static final ExecutorService ui_pool=Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());

@@ -82,19 +82,18 @@ public class rwmapOpt implements Runnable {
   ou = u;
   ui = uo;
  }
- public static void init(HashMap<String,section> src){
+ public static void init(HashMap<String,section> src) {
   HashMap re=src.get("tmx").m;
-  for (Map.Entry<String,Object> en:(Set<Map.Entry>)re.entrySet()) {
-   HashSet add=new HashSet();
-   Collections.addAll(add, ((String)en.getValue()).split(","));  
-   en.setValue(add);
-  }
+  for (Map.Entry<String,Object> en:(Set<Map.Entry>)re.entrySet())
+   en.setValue(rwmodProtect.toSet((String)en.getValue()));
   rwmapOpt.remove = re;
   HashMap<String,String> set= src.get("unit").m;
   String list[]=set.get("replace").split(",");
-  HashSet oldunits=new HashSet();
-  HashMap fovers=new HashMap();
   int i=0,len=list.length;
+  int size=len - (len >> 2);
+  //1.5倍
+  HashSet oldunits=new HashSet(size);
+  HashMap fovers=new HashMap(size);
   do {
    String k=list[i++];
    String v=list[i++];
@@ -104,9 +103,9 @@ public class rwmapOpt implements Runnable {
   rwmapOpt.oldunits = oldunits;
   rwmapOpt.fovers = fovers;
   list = set.get("unit").split(",");
-  HashMap units = new HashMap();
-  i = 0;
   len = list.length;
+  HashMap units = new HashMap(len >> 1);
+  i = 0;
   do {
    String id=list[i++];
    String v=list[i++];
@@ -164,7 +163,7 @@ public class rwmapOpt implements Runnable {
   int team=-1;
   String type=null;  
   NodeList list=node.getChildNodes();
-  for (int i=0,len=list.getLength();i<len;i++) {
+  for (int i=0,len=list.getLength();i < len;i++) {
    Node item = list.item(i);
    if (item.getNodeType() != Node.ELEMENT_NODE)continue;
    NamedNodeMap attr=item.getAttributes();

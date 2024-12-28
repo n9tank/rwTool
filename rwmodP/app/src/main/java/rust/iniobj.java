@@ -1,5 +1,4 @@
 package rust;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,7 +36,7 @@ public class iniobj {
     src.put(ac, cpy);
    }
    String str=list == null ?null: (String)list.get("@copyFrom_skipThisSection");
-   boolean has="1".equals(str) || "true".equals(str);
+   boolean has="1".equals(str)/* || "true".equals(str)*/;
    if (!has) {
     section cp = en.getValue();
     HashMap listdrc=cp.m;
@@ -54,6 +53,7 @@ public class iniobj {
   put(put, drc.put);
  }
  void asFor(section cpy) {
+  //copyFrom去重由于luke的屎容易引发BUG，应该交给开发者自己处理
   HashMap map=put;
   HashMap hash=cpy.m;
   String str = (String)hash.remove("@copyFromSection");
@@ -80,7 +80,9 @@ public class iniobj {
       if (in == null)break;
       copy.putAll(in);
      }
-     ascache.put(str, copy);
+     Comparables ckey=new Comparables();
+     ckey.set(list, 0, list.length);
+     ascache.put(ckey, copy);
     }
    }
    if (copy != null) {
@@ -101,6 +103,7 @@ public class iniobj {
  public HashMap[] merge(String list[]) {
   int len=list.length;
   HashMap copy[]=new HashMap[len];
+  Comparables strs=new Comparables();
   HashMap ini=put;
   int c=0;
   wh:
@@ -108,7 +111,7 @@ public class iniobj {
    int v=len;
    int n;
    for (;(n = (v - 1)) > i;v = n) {
-    String strs=String.join(",", v - i == len ?list: Arrays.copyOfRange(list, i, v));
+    strs.set(list, i, v);
     HashMap map= (HashMap)ascache.get(strs);
     if (map != null) {
      //如果考虑大块会提高时间复制度，这里简单跳过
