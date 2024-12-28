@@ -6,18 +6,20 @@ public class loaders implements Comparable {
  public int compareTo(Object o) {
   loaders obj=(loaders)o;
   int i=Integer.compare(hashCode, obj.hashCode);
-  if (i != 0)return i;
+   if (i != 0)return i;
   loader orr[]=copy;
   loader irr[]=obj.copy;
   int len=orr.length;
   i = len - irr.length;
   if (i != 0)return i;
-  for (int k=0;k < len;++k) {
+  for (int k=1;k < len;++k) {
    loader p1=orr[k];
-   loader p2=irr[k];     
+   loader p2=irr[k]; 
    if (p1 == p2)continue;
-   i = Integer.compare(p1.hashCode(), p2.hashCode());
+   i = (p1 == null ?0: 1) - (p2 == null ?0: 1);
    if (i != 0)return i;
+   i = Integer.compare(p1.hashCode(), p2.hashCode());
+    if (i != 0)return i;
    String path=p1.src;
    i = path.compareTo(p2.src);
    if (i != 0)return i;
@@ -27,17 +29,12 @@ public class loaders implements Comparable {
     if (i != 0)return i;  
    }
   }
-  return ifNullToBlank(all).compareTo(ifNullToBlank(all));
- }
- public static String ifNullToBlank(loader all) {
-  return all == null ?"": all.src;
+  return 0;
  }
  public loader copy[];
- public loader all;
  public int hashCode;
- public loaders(loader copy[], loader all) {
-  this.all = all;
-  hashCode = Arrays.hashCode(copy) * 31 + (all == null ?0: all.hashCode());
+ public loaders(loader copy[]) {
+  this.hashCode = Arrays.hashCode(copy);
   this.copy = copy;
  }
  public int hashCode() {

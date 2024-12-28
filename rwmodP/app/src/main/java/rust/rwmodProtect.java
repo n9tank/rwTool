@@ -169,12 +169,13 @@ public class rwmodProtect extends loaderManager implements Consumer {
   buff.append(add);
   buff.append(',');
  } 
- public static boolean with(loader copy[], loader all) {
+ public static boolean with(loader copy[]) {
+  loader all=copy[0];
   if (copy != null) {
-   for (loader lod:copy) {
-	loaders key=lod.copy;
-    if (key.all == all || with(key.copy, all))
-	 return true;
+   for (int i=1,len=copy.length;i < len;++i) {
+    loader key[]=copy[i].copy.copy;
+    if (key[0] == all || with(key))
+     return true;
    }
   }
   return false;
@@ -186,46 +187,71 @@ public class rwmodProtect extends loaderManager implements Consumer {
   new iniTask(this, lod, asyncOut);
   return ok;
  }
+ public HashMap[] merge(loaders key) {
+  loader[] list=key.copy;
+  int len=list.length;
+  HashMap copy[]=new HashMap[len];
+  int c=0;
+  wh:
+  for (int i=0;i < len;) {
+   int v=len;
+   int n;
+   for (;(n = (v - 1)) > i;v = n) {
+    int lens=v - i;
+    int off=i == 0 ?0: 1;
+    loader keys[];
+    if (lens == len) {
+     keys = new loader[off + lens];
+     System.arraycopy(list, i, keys, off, lens);
+    } else keys = list;
+    Object obj= oldobj.get(new loaders(keys));
+    if (obj != null) {
+     if (obj instanceof loader)return null;
+     i = v;
+     copy[c++] = (HashMap)obj;
+     continue wh;
+    }
+   }
+   loader lod=list[i++];
+   if (lod != null)
+    copy[c++] = lod.ini;
+  }
+  return copy;
+ }
  boolean write(loader ini) throws Throwable {
   loaders copy=ini.copy;
-  Object objtype=oldobj.get(copy);
-  if (objtype instanceof loader)return false;
-  HashMap oldsrc=(HashMap)objtype;
-  tag:
-  if (oldsrc == null) {
-   boolean ru=true;
-   loader all=copy.all;
-   if (all != null)ru &= asyncAdd(all);
-   loader[] list=copy.copy;
-   for (loader lod:list)ru &= asyncAdd(lod);
-   if (!ru)return false;
-   int i;
-   if ((i = list.length + (all == null ?0: 1)) <= 1) {
-    if (i <= 0)break tag;
-    oldsrc = (all == null ?list[0]: all).ini;
-    break tag;
-   }
+  boolean ru=true;
+  loader[] orr=copy.copy;
+  for (loader lod:orr) {
+   if (lod != null)
+    ru &= asyncAdd(lod);
+  }
+  if (!ru)return false;
+  HashMap[] maps=merge(copy);
+  if (maps == null)return false;
+  HashMap oldsrc=null;
+  int len=maps.length;
+  if (len > 1 && maps[1] != null) {
    Object obj=oldobj.putIfAbsent(copy, ini);
    if (obj != null) {
     if (obj instanceof loader)return false;
     oldsrc = (HashMap)obj;
    } else {
     oldsrc = new HashMap();
-    for (i = list.length;--i >= 0;) {
-     loader lod=list[i];
-     iniobj.put(oldsrc, lod.ini);
+    for (;--len >= 0;) {
+     HashMap lod=maps[len];
+     if (lod != null)
+      iniobj.put(oldsrc, lod);
     }
-    if (all != null)iniobj.put(oldsrc, all.ini); 
     oldobj.put(copy, oldsrc);
    }
-  }
+  } else oldsrc = maps[0];
   StringBuilder buff=new StringBuilder();
   StringBuilder bf=new StringBuilder();
   CharSequence file=loader.getSuperPath(ini.src);
   HashMap map=ini.ini;
-  loader alls=copy.all;
-  loader[] orr= copy.copy;
-  if (orr.length > 0 || alls != null) {
+  loader alls=orr[0];
+  if (orr.length > 1 || alls != null) {
    section cp=(section)map.get("core");
    HashMap core;
    if (cp == null) {
@@ -234,10 +260,10 @@ public class rwmodProtect extends loaderManager implements Consumer {
     map.put("core", cp);
    } else core = cp.m;
    String str=ini.str;
-   if (alls != null && !with(orr, alls))
+   if (!with(orr))
     appstr(str, alls, buff);
-   for (loader obj:orr)
-    appstr(str, obj, buff);  
+   for (int i=1,size=orr.length;i < size;++i)
+    appstr(str, orr[i], buff);
    buff.setLength(buff.length() - 1);
    core.put("copyFrom", buff.toString());
   }

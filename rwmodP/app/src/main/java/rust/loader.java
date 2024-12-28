@@ -150,12 +150,10 @@ public class loader extends IoWriter implements Callable,Runnable {
    if (ini == null) {
     HashMap<String, section> table=load(read.io());
     ini = table;
-    loader all=null;
-    loader[] orr=new loader[0];
+    loader[] orr=new loader[1];
     //请不要定义未使用的ini。该版本移除了检查，便于并行
     CharSequence file = getSuperPath(tas instanceof rwlib ?str: src);
     section cp=table.get("core");
-    StringBuilder bf=new StringBuilder();
     String str;
     if (cp != null) {
      HashMap m=cp.m;
@@ -165,7 +163,7 @@ public class loader extends IoWriter implements Callable,Runnable {
      if (str != null && str.length() > 0 && !str.equals("IGNORE")) {
       String lrr[]=str.replace('\\', '/').split(",");
       int len= lrr.length;
-      orr = new loader[len];
+      orr = new loader[len + 1];
       for (int i=0;i < len;++i) {
        str = lrr[i].trim();
        loader lod;
@@ -178,34 +176,34 @@ public class loader extends IoWriter implements Callable,Runnable {
         str = str.replaceFirst("^/+", "");
         lod = tas.getLoder(con + str);
        } else lod = (loader)rwlib.libMap.get(str.replaceFirst("^CORE:/*", "").toLowerCase());
-       orr[i] = lod;
+       orr[i + 1] = lod;
       }
      }
     }
 	if (isini) {
-	 bf.setLength(0);
-	 bf.append(file);
+     StringBuilder bf=new StringBuilder(file); 
 	 int i=file.length();
 	 while (true) {
 	  bf.append("all-units.template");
 	  String fin = bf.toString();
-	  all = tas.getLoder(fin);
-	  if (all != null)break;
+	  loader all = tas.getLoder(fin);
+	  if (all != null) {
+       orr[0] = all;
+       break;
+      }
 	  i = fin.lastIndexOf('/', --i);
 	  if (i < 0)break;
 	  bf.setLength(i + 1);
 	 }
 	}
-    copy = new loaders(orr, all);
+    copy = new loaders(orr);
    }
    loaders key=this.copy;
-   loader all=key.all;
    tag2: {
     tag: {
      loader[] or=key.copy;
      for (loader orr:or)
-      if (!orr.type)break tag;
-     if (all != null && !all.type)break tag;
+      if (orr != null && !orr.type)break tag;
      tas.lod(this);
 	 break tag2;
     }

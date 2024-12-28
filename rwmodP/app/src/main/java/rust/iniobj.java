@@ -59,9 +59,7 @@ public class iniobj {
   String str = (String)hash.remove("@copyFromSection");
   //这里不允许尾部仅有“,”的占位符
   if (str != null && str.length() > 0 && !str.equals("IGNORE")) {
-   str = str.replace(" ", "");
-   //(移除trim支持，用于优化)
-   String list[]=str.split(",");
+   String list[]=str.replace(" ", "").split(",");
    int i=list.length;
    HashMap copy=null;
    if (i == 1) {
@@ -73,15 +71,14 @@ public class iniobj {
 	}
    } else {
     i = 0;
-    copy = (HashMap)ascache.get(str);
-    if (copy == null) {
+    HashMap maps[]= merge(list);
+    if (maps[1] == null) {
+     copy = maps[0];
+    } else {
      copy = new HashMap();
-     for (String vl:list) {
-      section set=(section)map.get(vl);
-      if (set != null) {
-       asFor(set);
-       copy.putAll(set.m);
-      }
+     for (HashMap in:maps) {
+      if (in == null)break;
+      copy.putAll(in);
      }
      ascache.put(str, copy);
     }
@@ -101,34 +98,34 @@ public class iniobj {
    asFor(v);
   ascache = null;
  }
- /*
  public HashMap[] merge(String list[]) {
   int len=list.length;
   HashMap copy[]=new HashMap[len];
   HashMap ini=put;
   int c=0;
-  for (int i=0,j=list.length;i < j;i++) {
-   int v=j;
-   for (;v > i;--v) {
-    String strs=String.join(",", Arrays.copyOfRange(list, i, v));
+  wh:
+  for (int i=0;i < len;) {
+   int v=len;
+   int n;
+   for (;(n = (v - 1)) > i;v = n) {
+    String strs=String.join(",", v - i == len ?list: Arrays.copyOfRange(list, i, v));
     HashMap map= (HashMap)ascache.get(strs);
     if (map != null) {
+     //如果考虑大块会提高时间复制度，这里简单跳过
      i = v;
      copy[c++] = map;
-     break;
+     continue wh;
     }
    }
-   if (v == i) {
-    String key=list[i];
-    section map=(section)ini.get(key);
-    if (map != null) {
-     asFor(map);
-     copy[c++] = map.m;
-    }
+   String key=list[i++];
+   section map=(section)ini.get(key);
+   if (map != null) {
+    asFor(map);
+    copy[c++] = map.m;
    }
   }
   return copy;
- }*/
+ }
  static final HashSet set;
  static{
   HashSet sset=new HashSet();

@@ -40,13 +40,12 @@ public class BMFind {
     int k=j;
     for (int i=0;++k < len && src[k] == src[i];++i);
     if (k == len)lastpos = j + 1;
-    k = nlen - j;
-    list[k] = (byte)(lastpos + k);
+    list[j] = (byte)(lastpos + nlen - j);
    }
    for (int j=0;j < nlen;++j) {
     int k=j;
     for (int i=nlen;k >= 0 && src[k] == src[i];--k,--i);
-    list[j - k] = (byte)(nlen - k);
+    list[nlen - j + k] = (byte)(nlen - k);
    }
   } else {
    for (int j=0;j < len;++j) {
@@ -73,15 +72,16 @@ public class BMFind {
      if (j == 0)return i;
     }
     int c=src[i];
-    i += Math.max(good[nlen - j], c < 0 ?nlen: bad[c]);
+    i += Math.max(good[j], c < 0 ?nlen: bad[c]);
    }
   } else {
    for (i = end - plen;i >= start;) {
-    for (j = plen;src[i] == drc[nlen - (--j)]; ++i) {
+    int n;
+    for (j = plen;src[i] == drc[n = nlen - (--j)]; ++i) {
      if (j == 0) return i;
     }
     int c = src[i];
-    i -= Math.max(good[nlen - j], c < 0 ? nlen : bad[c]);
+    i -= Math.max(good[n], c < 0 ? nlen : bad[c]);
    }
   }
   return -1;

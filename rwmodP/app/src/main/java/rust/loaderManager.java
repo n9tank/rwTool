@@ -55,18 +55,18 @@ public abstract class loaderManager implements Callable,Canceler {
   }
  }
  public abstract loader getLoder(String str) throws Throwable;
- public static void lod(iniobj ini, loader orr[], loader all) {
+ public static void lod(iniobj ini, loader orr[]) {
   for (int i=orr.length;--i >= 0;) {
    loader lod=orr[i];
-   ini.put(lod.put);
+   if (lod != null)
+    ini.put(lod.put);
   }
-  if (all != null)ini.put(all.put); 
  }
  public void lod(loader ini) {
   HashMap map=ini.ini;
   if (Ou != null)map = iniobj.clone(map);
   iniobj obj= new iniobj(map);
   ini.put = obj;
-  lod(obj, ini.copy.copy, null);
+  lod(obj, ini.copy.copy);
  }
 }

@@ -12,6 +12,7 @@
 ## 兼容性问题
 * 加固的文件。如果文件已经加壳，这将出错。
 * 循环引用。当发生一个loop，会卡死。
+* ${section.key}。访问变更的内容，这将引发问题。
 * all-units.template<br>（移除兼容）当复制另一个.ini并指于自己向不同的all-units.template时出错<br>all-units.template优先于copyFrom。使用copyFrom复制ini，不会被追加ini持有的all-units.template。
 * 请避免使用all-units.template。诺要完全兼容all-units.template，将会大幅降低混淆效果。复制多个目标的all-units.template相同，会有格外的性能代价，除此之外这可能引起未跳过节，这是因为插入循序导致的。
 * 故意绕过的空组。使用分割符号不要空元素，如：“,”，“a,”等，此外元素不应该包含“ ”，文件除外。
