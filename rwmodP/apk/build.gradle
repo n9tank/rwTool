@@ -26,7 +26,7 @@ namespace 'rust.rwTool'
         //noinspection ExpiredTargetSdkVersion
         targetSdkVersion 29
         versionCode 241213
-        versionName "0.9.3.3"
+        versionName "0.9.4"
     }
     buildTypes {
         release {

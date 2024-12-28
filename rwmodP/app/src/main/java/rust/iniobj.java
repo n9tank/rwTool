@@ -73,15 +73,14 @@ public class iniobj {
 	}
    } else {
     i = 0;
-    copy = (HashMap)ascache.get(str);
-    if (copy == null) {
+    HashMap maps[]= merge(list);
+    if (maps[1] == null) {
+     copy = maps[0];
+    } else {
      copy = new HashMap();
-     for (String vl:list) {
-      section set=(section)map.get(vl);
-      if (set != null) {
-       asFor(set);
-       copy.putAll(set.m);
-      }
+     for (HashMap in:maps) {
+      if (in == null)break;
+      copy.putAll(in);
      }
      ascache.put(str, copy);
     }
@@ -101,18 +100,18 @@ public class iniobj {
    asFor(v);
   ascache = null;
  }
- /*
  public HashMap[] merge(String list[]) {
   int len=list.length;
   HashMap copy[]=new HashMap[len];
   HashMap ini=put;
   int c=0;
-  for (int i=0,j=list.length;i < j;i++) {
-   int v=j;
+  for (int i=0;i < len;i++) {
+   int v=len;
    for (;v > i;--v) {
-    String strs=String.join(",", Arrays.copyOfRange(list, i, v));
+    String strs=String.join(",", v - i == len ?list: Arrays.copyOfRange(list, i, v));
     HashMap map= (HashMap)ascache.get(strs);
     if (map != null) {
+     //如果考虑大块会提高时间复制度，这里简单跳过
      i = v;
      copy[c++] = map;
      break;
@@ -128,7 +127,7 @@ public class iniobj {
    }
   }
   return copy;
- }*/
+ }
  static final HashSet set;
  static{
   HashSet sset=new HashSet();
