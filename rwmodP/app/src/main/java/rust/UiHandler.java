@@ -11,14 +11,9 @@ import org.libDeflate.UIPost;
 public class UiHandler extends ErrorHandler {
  public static final ExecutorService ui_pool=Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
  volatile UIPost ui;
- AutoCloseable close;
  public UiHandler(ExecutorService pool, Canceler can, UIPost on) {
   super(pool, can);
   ui = on;
- }
- public UiHandler(ExecutorService pool, Canceler can, UIPost on, AutoCloseable close) {
-  this(pool, can, on);
-  this.close = close;
  }
  public static void close(AutoCloseable co) {
   if (co != null) {
@@ -28,7 +23,6 @@ public class UiHandler extends ErrorHandler {
   }
  }
  public void onClose() {
-  close(close);
   UIPost ui=this.ui;
   if (ui != null)ui.accept(err);
  }

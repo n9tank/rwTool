@@ -457,10 +457,12 @@ public class rwmodProtect extends loaderManager implements Consumer {
     err.pop();
     break;
    case 1:
+    uih = null;
     cre.on.pop();
     break;
    default:
     cre.end();
+    UiHandler.close(Zip);
     break;
   }
  }
@@ -480,7 +482,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
    Zip = zip;
    out = zippack.enZip(Ou);
    final ParallelDeflate cr = new ParallelDeflate(out, true);
-   cr.on = new UiHandler(cr.pool, this, back, zip);
+   cr.on = new UiHandler(cr.pool, this, back);
    cre = cr;
    String name=null;
    HashSet rset=new HashSet();

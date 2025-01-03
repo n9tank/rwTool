@@ -103,9 +103,6 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
    }
    buf.flush();
   } finally {
-   if (task instanceof rwlib)
-    rwlib.gc(this);
-   read = null;
    buf.close();
   }
  }
