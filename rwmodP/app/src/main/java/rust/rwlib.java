@@ -6,15 +6,14 @@ import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.util.Collection;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import java.util.List;
 import org.libDeflate.ParallelDeflate;
-import org.libDeflate.ZipEntryOutput;
 import org.libDeflate.UIPost;
-import java.util.Collections;
-import java.util.HashMap;
+import org.libDeflate.ZipEntryOutput;
+import java.util.List;
 
 public class rwlib extends loaderManager implements UIPost {
  public InputStream inp;
@@ -23,13 +22,14 @@ public class rwlib extends loaderManager implements UIPost {
  public rwlib(File in, InputStream io, File ou, UIPost ui) {
   super(in, ou, ui);
   inp = io;
-  rwlib last=this.last;
-  if (last != null)last.cancel();
-  last = this;
+  rwlib last=rwlib.last;
+  if (last != null)
+   last.cancel();
+  rwlib.last = this;
  }
  public loader getLoder(String str) throws Throwable {
   ZipEntry za=Zip.getEntry(Ou == null ?str: "assets/units/".concat(str));
-  return addLoder(za, str, "//", str, false);
+  return addLoder(za, str, "/", str, false);
  }
  public static void tolow(Map src) {
   HashMap map=new HashMap(src.size());
@@ -37,22 +37,27 @@ public class rwlib extends loaderManager implements UIPost {
    map.put(lod.str.toLowerCase(), lod);
   libMap = map;
  }
+ public void cancel() {
+  last = null;
+  super.cancel();
+ }
  public void end() {
   UiHandler.close(Zip);
-  File ou=Ou;
-  if (ou != null)
+  uih = null;
+  if (Ou != null)
    cre.on.pop();
-  else accept(uih.err);
+  else accept(null);
   tolow(Zipmap);
  }
  public static void gc(loader lod) {
   lod.ini = null;
+  lod.read = null;
   lod.copy = null;
   lod.task = null;
  }
  public void accept(List<Throwable> list) {
-  for (loader lod:(Collection<loader>)Zipmap.values())
-   gc(lod);
+  for (loader ini:(Collection<loader>)Zipmap.values())
+   gc(ini);
   back.accept(list);
   last = null;
  }
@@ -86,7 +91,7 @@ public class rwlib extends loaderManager implements UIPost {
     String name = zipe.getName();
     if (ou == null || (name.endsWith("i") && name.charAt(7) == 'u')) {
      if (ou != null)name = name.substring(13);
-     addLoder(zipe, name, "//", name, false);
+     addLoder(zipe, name, "/", name, false);
     }
    }
   } catch (Throwable e) {

@@ -28,7 +28,7 @@ public abstract class loaderManager implements Callable,Canceler {
   back = ui;
  }
  public void init() {
-  UiHandler uih = new UiHandler(UiHandler.ui_pool, this, null, null);
+  UiHandler uih = new UiHandler(UiHandler.ui_pool, this, null);
   this.uih = uih;
   uih.addN(this);
  }
@@ -48,12 +48,15 @@ public abstract class loaderManager implements Callable,Canceler {
   return lod;
  }
  public void cancel() {
-  uih.ui = back;
+  UiHandler.close(Zip);
+  UiHandler uih=this.uih;
   ParallelDeflate cre=this.cre;   
-  if (cre != null)
-   uih.err.addAll(cre.on.err);
-  if (uih.cancel() && cre != null)
-   cre.cancel();
+  if (uih != null) {
+   uih.ui = back;
+   if (uih.cancel() && cre != null)
+    uih.err.addAll(cre.on.err);
+  }
+  if (cre != null)cre.cancel();
  }
  public abstract loader getLoder(String str) throws Throwable;
  public static void lod(iniobj ini, loader orr[]) {

@@ -26,7 +26,7 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
    int i = path.compareTo(p2.src);
    if (i != 0)return i;
    //对于依赖库仍需避免冲突
-   if (path == "//") {
+   if (path == "/") {
     i = this.str.compareTo(p2.str);
     if (i != 0)return i;  
    }
@@ -103,9 +103,6 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
    }
    buf.flush();
   } finally {
-   if (task instanceof rwlib)
-    rwlib.gc(this);
-   read = null;
    buf.close();
   }
  }

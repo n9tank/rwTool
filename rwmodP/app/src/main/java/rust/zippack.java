@@ -13,8 +13,9 @@ import org.libDeflate.ZipUtil;
 import org.libDeflate.ZipInputGet;
 import org.libDeflate.UIPost;
 import java.util.Collections;
+import java.util.List;
 
-public class zippack implements Runnable {
+public class zippack implements Runnable,UIPost {
  File in;
  File ou;
  UIPost ui;
@@ -48,46 +49,45 @@ public class zippack implements Runnable {
   }
   return out;
  }
+ ZipFile Zip;
+ public void accept(List<Throwable> list) {
+  UiHandler.close(Zip);
+  ui.accept(list);
+ }
  public void run() {
   try {
    ZipFile zip= new ZipFile(in);
+   this.Zip = zip;
    try {
     ZipEntryOutput zipout=enZip(ou);
+    ParallelDeflate cr=new ParallelDeflate(zipout, true);
+    cr.on = new UiHandler(cr.pool, cr, this);
     try {
-     ParallelDeflate cr=new ParallelDeflate(zipout, true);
-     cr.on = new UiHandler(cr.pool, cr, ui, zip);
-     try {
-      Enumeration all=zip.entries();
-      while (all.hasMoreElements()) {
-       ZipEntry en=(ZipEntry)all.nextElement();
-       String name=en.getName();
-       int mode=12;
-       if (!en.isDirectory()) {
-        int n=name.length() - 4;          
-        if (name.regionMatches(true, n, ".png", 0, 4))mode = 0;   
-        if (!name.regionMatches(true, n, ".ogg", 0, 4) && !name.regionMatches(true, n, ".wav", 0, 4))name = name.concat("/");
-       } else name = null;
-       if (name != null) {
-        ZipEntryM put=ZipUtil.newEntry(name, mode);
-        put.size = (int)en.getSize();
-        writeOrCopy(cr, zip, en, put , raw);
-       }
+     Enumeration all=zip.entries();
+     while (all.hasMoreElements()) {
+      ZipEntry en=(ZipEntry)all.nextElement();
+      String name=en.getName();
+      int mode=12;
+      if (!en.isDirectory()) {
+       int n=name.length() - 4;          
+       if (name.regionMatches(true, n, ".png", 0, 4))mode = 0;   
+       if (!name.regionMatches(true, n, ".ogg", 0, 4) && !name.regionMatches(true, n, ".wav", 0, 4))name = name.concat("/");
+      } else name = null;
+      if (name != null) {
+       ZipEntryM put=ZipUtil.newEntry(name, mode);
+       put.size = (int)en.getSize();
+       writeOrCopy(cr, zip, en, put , raw);
       }
-     } catch (Exception e) {
-      cr.cancel();
-     } finally {
-      cr.close();
      }
     } catch (Exception e) {
-     zipout.cancel();
-     throw e;
+     cr.cancel();
     }
-   } catch (Exception e) {
+    cr.on.pop();
+   } finally {
     zip.close();
-    throw e;
    }
   } catch (Throwable e) {
-   ui.accept(Collections.singletonList(e));
+   ui.accept(UiHandler.toList(e));
   }
  }
 }
