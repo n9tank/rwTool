@@ -1,19 +1,16 @@
 package rust;
 
 import java.io.File;
-import java.io.InputStream;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import org.libDeflate.ParallelDeflate;
-import org.libDeflate.ZipEntryInput;
+import org.libDeflate.UIPost;
 import org.libDeflate.ZipEntryM;
 import org.libDeflate.ZipEntryOutput;
-import org.libDeflate.ZipUtil;
 import org.libDeflate.ZipInputGet;
-import org.libDeflate.UIPost;
-import java.util.Collections;
-import java.util.List;
+import org.libDeflate.ZipUtil;
 
 public class zippack implements Runnable,UIPost {
  File in;
@@ -59,8 +56,7 @@ public class zippack implements Runnable,UIPost {
    ZipFile zip= new ZipFile(in);
    this.Zip = zip;
    try {
-    ZipEntryOutput zipout=enZip(ou);
-    ParallelDeflate cr=new ParallelDeflate(zipout, true);
+    ParallelDeflate cr=new ParallelDeflate(enZip(ou), true);
     cr.on = new UiHandler(cr.pool, cr, this);
     try {
      Enumeration all=zip.entries();
@@ -83,8 +79,9 @@ public class zippack implements Runnable,UIPost {
      cr.cancel();
     }
     cr.on.pop();
-   } finally {
+   } catch (Exception e) {
     zip.close();
+    throw e;
    }
   } catch (Throwable e) {
    ui.accept(UiHandler.toList(e));

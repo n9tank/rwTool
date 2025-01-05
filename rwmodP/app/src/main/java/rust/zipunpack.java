@@ -183,8 +183,10 @@ public class zipunpack implements Runnable {
    int timeIn=off += 2;
    buf.putInt(off += 4, 0);//crc
    int csize=buf.getInt(off += 4);
-   if (csize == 0)buf.putShort(mod, (short)0);
-   off += 8;
+   if (csize == 0)
+    buf.putShort(mod, (short)0);
+   int ucsize=buf.get(off += 4); 
+   off += 4;
    int nameIndrc=off + drcoff + addall;
    int namelen=buf.getShort(off) & 0xffff;
    int exlen=buf.getShort(off += 2) & 0xffff;
@@ -224,9 +226,17 @@ public class zipunpack implements Runnable {
     zip64 += 4;
     if (zip64 + sz > exoff)break;
     if (ztag == 0x0001) {
-     zip64 += 16;
-     sz -= 16;
-     if (sz < 8 || (zip64 + 8) > exoff)break;
+     if (sz < 8)break;
+     if (ucsize == 0xffffffff)
+      drc.putInt(nameIndrc - 4, (int)buf.getLong(zip64));
+     zip64 += 8;
+     sz -= 8;
+     if (sz < 8)break;
+     if (csize == 0xffffffff)
+      drc.putInt(nameIndrc - 8, (int)buf.getLong(zip64));
+     zip64 += 8;
+     sz -= 8;
+     if (sz < 8)break;
      if (zpos32 == 0xffffffffL) {
       int zpos = (int)(off(buf.getLong(zip64)) + headoff);
       drc.putInt(nameIndrc + 14, zpos);
