@@ -2,6 +2,7 @@ plugins {
     id 'com.android.application'
   }
 android {
+aaptOptions.cruncherEnabled=false
 namespace 'rust.rwTool'
     compileSdkVersion 31
     packagingOptions{
@@ -54,4 +55,9 @@ namespace 'rust.rwTool'
 dependencies {
 implementation fileTree("libsAAr")
 //implementation fileTree(dir: "libs", include: ["*.jar"])
+}
+
+//将编译器作为单独的进程运行,该配置效果卓越，该配置的目的是将java类的编译放在独立进程进行操作，java类越多效果越明显
+tasks.withType(JavaCompile).configureEach {
+    options.fork = true
 }
