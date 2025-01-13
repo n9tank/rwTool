@@ -18,6 +18,7 @@ import org.libDeflate.ParallelDeflate;
 import org.libDeflate.ZipUtil;
 import rust.loader;
 import rust.loaders;
+import java.util.regex.Pattern;
 public class loader extends IoWriter implements Callable,Runnable,Comparable {
  public int compareTo(Object o) {
   if (this != o) {
@@ -109,6 +110,7 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
  public static HashMap<String,section> load(InputStream read) throws IOException {
   return load(new BufferedReader(new InputStreamReader(read), Math.min(read.available(), 8192)));
  }
+ public static final char[] split=new char[]{':','='};
  public static HashMap<String,section> load(BufferedReader buff) throws IOException {
   StringBuilder bf=new StringBuilder();
   String str;
@@ -155,15 +157,15 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
       list = cpy == null ?null: cpy.m;
      }
     } else if (last != null) {
-     String value[]=str.split("[:=]", 2);
-     if (value.length > 1) {
+     int splitIn=iniobj.indexOfChars(str, split);
+     if (splitIn >= 0) {
       if (list == null) {
        section cpy=new section();
        cpy.m = list = new HashMap();
        table.put(last, cpy);
       }
-      String key=value[0].trim();
-      String set=value[1].trim();
+      String key=str.substring(0, splitIn).trim();
+      String set=str.substring(splitIn + 1).trim();
       set = replace(key, set);
       list.put(key, set);
      }
@@ -174,6 +176,12 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
   }
   return table;
  }
+ /*
+  public static final Pattern pathtrim=Pattern.compile("^/+");
+  public static final Pattern coretrim=Pattern.compile("^CORE:/*");
+  public static String PathTrim(Pattern path, String str) {
+  return path.matcher(str).replaceFirst("");
+  }*/
  public Object call() {
   run();
   return null;
@@ -209,9 +217,8 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
          str = str.substring(5);
          con = tas.rootPath;
         } else con = file;
-        str = str.replaceFirst("^/+", "");
         lod = tas.getLoder(con + str);
-       } else lod = (loader)rwlib.libMap.get(str.replaceFirst("^CORE:/*", "").toLowerCase());
+       } else lod = (loader)rwlib.libMap.get(str.substring(5).toLowerCase());
        orr[i + 1] = lod;
       }
      }

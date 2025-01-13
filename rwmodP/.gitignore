@@ -2,4 +2,3 @@
 /gradle
 !.gitignore
 /lib
-/build

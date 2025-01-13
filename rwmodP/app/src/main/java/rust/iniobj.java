@@ -138,8 +138,35 @@ public class iniobj {
   sset.add("sin");
   sset.add("sqrt");
  }
- static final Pattern find=Pattern.compile("[a-zA-Z_][0-9a-zA-Z_.]*");
- static final Pattern mathExp=Pattern.compile("[-+/*^%()]");
+ public static int indexOfDefine(CharSequence str, int i) {
+  int len=str.length();
+  for (;i < len;++i) {
+   char c=str.charAt(i);
+   if (c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+    return i;
+   }
+  }
+  return -1;
+ }
+ public static int nextDefine(CharSequence str, int i) {
+  int len=str.length();
+  for (;++i < len;) {
+   char c=str.charAt(i);
+   if (c != '.' && c != '_' && (c < '0' || c > '9') && (c < 'a' || c > 'z') && (c < 'A' || c > 'Z')) {
+    return i;
+   }
+  }
+  return len;
+ }
+ static final char[] mathExp=new char[]{'+','-','*','/','%','^','(',')'};
+ public static int indexOfChars(CharSequence str, char list[]) {
+  for (int i=0,len=str.length();i < len;++i) {
+   char c=str.charAt(i);
+   for (char j:list)
+    if (c == j)return i;
+  }
+  return -1;
+ }
  public static String copyValue(HashMap<String,section> ini, String list, String k) {
   if (list != null && list.length() > 0 && ! list.equals("IGNORE")) {
    String keys[]=list.replace(" " , "").split(",");
@@ -183,33 +210,35 @@ public class iniobj {
    if (n < 0)break;
    String key=str.substring(i, n).trim();
    if (key.length() > 0) {
-    Matcher matcher=find.matcher(key);
-    int q=0,st=buff.length();
-    while (matcher.find()) {
-     int k;
-     buff.append(key, q, k = matcher.start());
-     String group = matcher.group(0);
+    int st=buff.length();
+    int groupst=0;
+    int lastst=0;
+    while ((groupst = indexOfDefine(key, groupst)) >= 0) {
+     buff.append(key, lastst, groupst);
+     lastst = groupst;
+     groupst = nextDefine(key, groupst);
+     String group=key.substring(lastst, groupst);
      if (!set.contains(group)) {
       Object o=null;
-      String list[]=group.split("\\.", 2);
-      String keyv=list[0];
-      if (list.length > 1) {
+      int spiltIn=group.indexOf('.');
+      String keyv=spiltIn < 0 ?group: group.substring(0, spiltIn);
+      if (spiltIn >= 0) {
        if (!keyv.equals("section") && !key.equals(eqz)) {
         cpy = (section)put.get(keyv);
         if (cpy == null)return null;
        }
-       o = cpy.m.get(list[1]);
+       o = cpy.m.get(group.substring(spiltIn + 1));
       } else {
        o = cpy.m.get("@define ".concat(keyv));
        if (o == null)o = gl.get(keyv);
       }
       if (o == null)return null;
       buff.append(o);
-      q = matcher.end();
-     } else q = k;
+      lastst = groupst;
+     }
     }
-    buff.append(key, q, key.length());
-    if (mathExp.matcher(key).find()) {
+    buff.append(key, lastst, key.length());
+    if (indexOfChars(key, mathExp) >= 0) {
      double b= MathExp.get(buff.subSequence(st, buff.length()));
      buff.setLength(st);
      int intd=(int)b;

@@ -394,7 +394,6 @@ public class rwmodProtect extends loaderManager implements Consumer {
      }
     }
     if (st != 0)str = str.substring(st);
-    str = str.replaceFirst("^/+", "");
 	st = buff.length();
     buff.append(path);
    }
@@ -506,7 +505,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
      HashMap map=cp.m;
      String str =(String)map.get("sourceFolder");
      if (str != null) {
-      str = str.replace('\\', '/').replaceFirst("^/+", "");
+      str = str.replace('\\', '/');
       if (str.length() > 0 && !str.endsWith("/"))str = str.concat("/");
       musicPath = str;
       int max=maxSplit;
