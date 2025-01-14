@@ -186,6 +186,9 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
   run();
   return null;
  }
+ public static String concat(String con, String str) {
+  return con.length() == 0 ?str: con.concat(str);
+ }
  public void run() {
   loaderManager tas=task;
   UiHandler ui=tas.uih;
@@ -196,7 +199,7 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
     ini = table;
     loader[] orr=new loader[1];
     //请不要定义未使用的ini。该版本移除了检查，便于并行
-    CharSequence file = getSuperPath(tas instanceof rwlib ?str: src);
+    String file = getSuperPath(tas instanceof rwlib ?str: src);
     section cp=table.get("core");
     String str;
     if (cp != null) {
@@ -212,31 +215,29 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
        str = lrr[i].trim();
        loader lod;
        if (!str.startsWith("CORE:")) {
-        CharSequence con;
+        String con;
         if (str.startsWith("ROOT:")) {
          str = str.substring(5);
          con = tas.rootPath;
         } else con = file;
-        lod = tas.getLoder(con + str);
+        lod = tas.getLoder(concat(con, str));
        } else lod = (loader)rwlib.libMap.get(str.substring(5).toLowerCase());
        orr[i + 1] = lod;
       }
      }
     }
 	if (isini) {
-     StringBuilder bf=new StringBuilder(file); 
-	 int i=file.length();
+	 int len=file.length();
 	 while (true) {
-	  bf.append("all-units.template");
-	  String fin = bf.toString();
-	  loader all = tas.getLoder(fin);
+	  file = file.concat("all-units.template");
+	  loader all = tas.getLoder(file);
 	  if (all != null) {
        orr[0] = all;
        break;
       }
-	  i = fin.lastIndexOf('/', --i);
-	  if (i < 0)break;
-	  bf.setLength(i + 1);
+	  len = file.lastIndexOf('/', --len);
+	  if (len < 0)break;
+      file = file.substring(0, len + 1);
 	 }
 	}
     copy = new loaders(orr);
@@ -286,15 +287,15 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
  String src;
  InputGet read;
  loaderManager task;
- static CharSequence getName(String file) {
+ static String getName(String file) {
   int len=file.length();
   int i=file.lastIndexOf('/', len - 1);
   if (i < 0)return file;
-  return file.subSequence(++i, len);
+  return file.substring(++i, len);
  }
- static CharSequence getSuperPath(String str) {
+ static String getSuperPath(String str) {
   int i=str.lastIndexOf('/', str.length() - 2);
-  if (i > 0)return str.subSequence(0, i + 1);
+  if (i > 0)return str.substring(0, i + 1);
   return "";
  }
 }

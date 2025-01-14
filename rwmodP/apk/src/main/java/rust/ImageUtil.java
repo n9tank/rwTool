@@ -21,14 +21,14 @@ public class ImageUtil {
   Bitmap bit=Bitmap.createBitmap(w, h * size, Bitmap.Config.ARGB_8888);
   for (rwmapOpt.base64png png:list) {
    if (png == null)continue;
-   byte imgarr[] = Base64.getDecoder().decode(png.img.getTextContent().replaceAll("\\s", ""));
+   byte imgarr[] = Base64.getDecoder().decode(iniobj.trims(png.img.getTextContent()));
    Bitmap bmp=BitmapFactory.decodeByteArray(imgarr, 0, imgarr.length);
    int pw=bmp.getWidth() / w;
    Canvas cv= new Canvas(bit);
    Paint pt= new Paint();
    pt.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC));
    int first=png.start;
-   for (int c=0,len=png.len;c<len;++c) {
+   for (int c=0,len=png.len;c < len;++c) {
     Integer key=c + first;     
     if (!tree.contains(key) && tiles.containsKey(key)) {
      int left=c % pw * w;   

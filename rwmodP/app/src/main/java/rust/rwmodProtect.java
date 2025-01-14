@@ -61,7 +61,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
   String[] list=str.split(",");
   int len=list.length;
   HashSet add=new HashSet(len + (len >> 1));
-  Collections.addAll(add, list);  
+  Collections.addAll(add, list);
   return add;
  }
  public static void init(HashMap<String,section> src)throws Exception {
@@ -251,7 +251,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
   } else oldsrc = maps[0];
   StringBuilder buff=new StringBuilder();
   StringBuilder bf=new StringBuilder();
-  CharSequence file=loader.getSuperPath(ini.src);
+  String file=loader.getSuperPath(ini.src);
   HashMap map=ini.ini;
   loader alls=orr[0];
   if (orr.length > 1 || alls != null) {
@@ -295,7 +295,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
       String next=put.get(value, ac, cpys, buff);
       if (next != null) {
 	   zipunpack.name pathret=AllPath(next, file, type, buff, bf);
-       String path=pathret.name;
+       CharSequence path=pathret.name;
        boolean withDefine=!value.equals(next);
        String oldPathcopy=oldmap == null ?null: iniobj.copyValue(oldmap, (String)oldmap.get("@copyFromSection"), key);
        if (!(eq || path.equals(oldPath)) && 
@@ -368,7 +368,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
   buff.append(str);
   if (i > 0)buff.append(add, i, add.length());
  }
- zipunpack.name AllPath(String str, CharSequence path, int type, StringBuilder buff, StringBuilder bf) throws Throwable {
+ zipunpack.name AllPath(String str, String path, int type, StringBuilder buff, StringBuilder bf) throws Throwable {
   //不予修复非法auto图像
   if (str.length() == 0 || str.equalsIgnoreCase("none") || str.equals("IGNORE") || str.equalsIgnoreCase("auto"))
    return new zipunpack.name(str, true);
@@ -494,7 +494,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
     lows.putIfAbsent(fileName.toLowerCase(), zipEntry);
    }while(zipEntrys.hasMoreElements());
    rootPath = name;
-   ZipEntry inf=toPath(name.concat("mod-info.txt"));
+   ZipEntry inf=toPath(loader.concat(name, "mod-info.txt"));
    if (inf != null) {
     loader ini=new loader();
     InputStream in=zip.getInputStream(inf);
@@ -526,7 +526,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
 	if (type == 4) {
 	 addLoder(zipEntry, name, name, null, true);
 	} else if (type == 0) {
-     zippack.writeOrCopy(cre, zip, zipEntry, ZipUtil.newEntry(loader.getName(name) + "/", 12), raw);
+     zippack.writeOrCopy(cre, zip, zipEntry, ZipUtil.newEntry(loader.getName(name).concat("/"), 12), raw);
 	} else if (type >= 5) {
      ogg.add(zipEntry);
     }

@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.nio.CharBuffer;
 
 public class iniobj {
  public HashMap put;
@@ -59,18 +60,18 @@ public class iniobj {
   String str = (String)hash.remove("@copyFromSection");
   //这里不允许尾部仅有“,”的占位符
   if (str != null && str.length() > 0 && !str.equals("IGNORE")) {
-   String list[]=str.replace(" ", "").split(",");
-   int i=list.length;
+   String list[]=str.split(",");
+   int len=list.length;
    HashMap copy=null;
-   if (i == 1) {
-	String vl=list[0];
-	section set=(section)map.get(vl);
+   if (len == 1) {
+	section set=(section)map.get(list[0].trim());
 	if (set != null) {
 	 asFor(set);
 	 copy = set.m;
 	}
    } else {
-    i = 0;
+    for (int i=0;i < len;++i)
+     list[i] = list[i].trim();
     HashMap maps[]= merge(list);
     if (maps[1] == null) {
      copy = maps[0];
@@ -167,11 +168,25 @@ public class iniobj {
   }
   return -1;
  }
+ public static String trims(String str) {
+  int off=0;
+  int len=str.length();
+  char[] cr=new char[len];
+  for (int i = 0; i < len; i++) {
+   char c = str.charAt(i);
+   if (c == ' ' || c == '\n')
+    --off;
+   else
+    cr[i + off] = c;
+  }
+  if (off == 0)return str;
+  return new String(cr, 0, len + off);
+ }
  public static String copyValue(HashMap<String,section> ini, String list, String k) {
   if (list != null && list.length() > 0 && ! list.equals("IGNORE")) {
-   String keys[]=list.replace(" " , "").split(",");
+   String keys[]=list.split(",");
    for (int i=keys.length;--i >= 0;) {
-	section kvs= ini.get(keys[i]);
+	section kvs= ini.get(keys[i].trim());
 	if (kvs == null)continue;
 	HashMap<String,String> kvmap=kvs.m;
 	String obj=kvmap.get(k);

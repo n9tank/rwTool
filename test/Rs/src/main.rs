@@ -48,9 +48,6 @@ fn read_cnf<I: BufRead>(
             continue;
         }
         let skip = c == b'"';
-        if !skip {
-            continue;
-        }
         let mut ispix = false;
         strbuf.clear();
         loop {
@@ -89,6 +86,7 @@ fn read_cnf<I: BufRead>(
         if var.as_bytes()[0] == b'[' && matches!(var[1..].find(']'),Some(x)if x==i) {
             if var[1..].starts_with("comment_") {
                 last = None;
+                lastKey = None;
             } else {
                 let str = &var[1..i];
                 lastkey = Some(str.to_string());

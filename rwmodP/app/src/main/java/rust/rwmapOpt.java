@@ -23,6 +23,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import java.util.regex.Pattern;
 
 
 public class rwmapOpt implements Runnable {
@@ -597,7 +598,7 @@ public class rwmapOpt implements Runnable {
   for (int i=0,l=list.getLength();i < l;++i) {
    Node item=list.item(i);
    if (item.getNodeType() == Node.TEXT_NODE) {
-	out.write(item.getNodeValue().replaceAll("\\s", ""));
+	out.write(iniobj.trims(item.getNodeValue()));
 	continue;
    }
    out.write('<');

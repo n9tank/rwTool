@@ -15,7 +15,7 @@
 * ${section.key}。访问变更的内容，这将引发问题。
 * all-units.template<br>（移除兼容）当复制另一个.ini并指于自己向不同的all-units.template时出错<br>all-units.template优先于copyFrom。使用copyFrom复制ini，不会被追加ini持有的all-units.template。
 * 请避免使用all-units.template。诺要完全兼容all-units.template，将会大幅降低混淆效果。复制多个目标的all-units.template相同，会有格外的性能代价，除此之外这可能引起未跳过节，这是因为插入循序导致的。
-* 故意绕过的空组。使用分割符号不要空元素，如：“,”，“a,”等，此外元素不应该包含“ ”，文件除外。
+* 故意绕过的空组。使用分割符号不要空元素，如：“,”，“a,”等。
 * 非法符号。文件名称不应该与混淆字符相同，此外值不能包含[.]所排除的特殊unicode。
 * @copyFrom_skipThisSection<br>（移除兼容）此值不能为 false,0,IGNORE。<br>@copyFrom_skipThisSection定义为false或0时拿回之前的所有键，反之丢弃。
 * 不规范的持有<br>持有 mod-info.txt、auto、..、. 等特殊名称等文件，还有背景音乐，地图和地图图像，使打包出错或造成多次复制。

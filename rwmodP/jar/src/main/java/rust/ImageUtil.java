@@ -21,7 +21,7 @@ public class ImageUtil {
   Graphics gd=bit.getGraphics();
   for (rwmapOpt.base64png png:list) {
    if (png == null)continue;
-   byte imgarr[] = Base64.getDecoder().decode(png.img.getTextContent().replaceAll("\\s", ""));
+   byte imgarr[] = Base64.getDecoder().decode(iniobj.trims(png.img.getTextContent()));
    BufferedImage img=ImageIO.read(new MemoryCacheImageInputStream(new ByteArrayInputStream(imgarr)));
    int first=png.start;
    int pw=img.getWidth() / w;

@@ -16,6 +16,7 @@ import org.libDeflate.BufOutput;
 import org.libDeflate.UIPost;
 import org.libDeflate.ZipEntryM;
 import rust.UiHandler;
+import java.util.Arrays;
 
 public class zipunpack implements Runnable {
  public static class intkv implements Comparable {
@@ -31,35 +32,38 @@ public class zipunpack implements Runnable {
  }
  File in;
  public static class name {
-  String name;
+  CharSequence name;
   boolean conts;
-  public name(String str, boolean con) {
+  public name(CharSequence str, boolean con) {
    name = str;
    conts = con;
   } 
  }
- public static int toName(String name) {
+ public static int toName(CharSequence name) {
   int i=name.length();
   if (i == 0)return 0;
   while (name.charAt(--i) == '/');
   return ++i;
- } 
- public static name getName(String name, HashSet set, StringBuilder buf, Random ran) {
+ }
+ public static CharBuffer appendChar(CharBuffer buf, char c) {
+  int len= buf.remaining();
+  if (len < 0) {
+   CharBuffer next= buf.allocate(buf.capacity() + 12);
+   buf.flip();
+   next.put(buf);
+   buf = next;
+  }
+  buf.put(c);
+  return buf;
+ }
+ public static name getName(CharBuffer name, HashSet set, Random ran) {
   boolean conts=false;
   int i=toName(name);
-  if (name.length() > i)name = name.substring(0, i);
-  if (!set.add(name)) {
-   buf.setLength(0);      
-   buf.append(name);
-   if (i > 0) {
-    while (--i > 0)buf.append('-'); 
-   } else buf.append('_');
-   while (!set.add(name = buf.toString())) {
-    conts = true; 
-    char c=(char)(ran.nextInt(94) + 33);
-    if (c == '-')++c;
-    buf.append(c);
-   }
+  name.limit(i);
+  while (!set.add(name)) {
+   conts = true; 
+   char c=(char)(ran.nextInt(94) + 33);
+   name = appendChar(name, c);
   }
   return new name(name, conts);
  }
@@ -171,9 +175,7 @@ public class zipunpack implements Runnable {
   HashSet set=new HashSet();
   TreeSet<intkv> tree=new TreeSet();
   offtree = tree;
-  StringBuilder strbuf=new StringBuilder();
   Random ran=new Random();
-  byte[] brr=null;
   int censub=buf.capacity() - 46;
   while (off <= censub) {
    off += 8;
@@ -196,16 +198,15 @@ public class zipunpack implements Runnable {
    buf.putInt(off, (int)(off(zpos32) + headoff));
    off += 4;
    buf.position(off);
-   if (brr == null || brr.length < namelen)
-    brr = new byte[BufOutput.tableSizeFor(namelen)];
-   buf.get(brr, 0, namelen);
    Charset code=utf8 ?utf8set: iso;
-   String str=new String(brr, 0, namelen, code);
+   buf.limit(off + namelen);
+   CharBuffer str=code.decode(buf.slice());
+   buf.limit(buf.capacity());
    int addlen;
-   zipunpack.name type=getName(str, set, strbuf, ran);
+   zipunpack.name type=getName(str, set, ran);
    if (type.conts)buf.putInt(timeIn, time);
    copy(buf, drc, lastoff, off);
-   CharBuffer nstr=CharBuffer.wrap(type.name);
+   CharBuffer nstr=(CharBuffer)type.name;
    CharsetEncoder codeen=utf8 ?utf8seten: isoen;
    int pos=drc.position();
    codeen.encode(nstr, drc, true);
