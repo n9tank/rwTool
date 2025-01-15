@@ -77,11 +77,13 @@ jar程序尚未适配完成，这仅仅作为实验。
 
 jar程序不支持直接导入AAR，你需要依赖库jar导入在libs。
 
+此外为了使用r8，请在libawt导入rt.jar。
+
 如果使用jar内加载动态库，需要先格外解压，为了兼容性，动态库请只在打包时加入。
 
 ### 编译
 
-./gradlew jar:jar
+./gradlew jar:assembleRelease
 
 ### 打包所有文件
 

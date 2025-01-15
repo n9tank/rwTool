@@ -46,14 +46,16 @@ public class zipunpack implements Runnable {
   return ++i;
  }
  public static CharBuffer appendChar(CharBuffer buf, char c) {
-  int len= buf.remaining();
-  if (len < 0) {
+  int in=buf.limit();
+  int len= buf.capacity() - in;
+  if (len == 0) {
    CharBuffer next= buf.allocate(buf.capacity() + 12);
-   buf.flip();
    next.put(buf);
+   next.rewind();
    buf = next;
   }
-  buf.put(c);
+  buf.limit(++in);
+  buf.put(in, c);
   return buf;
  }
  public static name getName(CharBuffer name, HashSet set, Random ran) {

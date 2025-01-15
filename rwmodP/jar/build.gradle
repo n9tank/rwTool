@@ -1,35 +1,36 @@
 plugins {
-    id 'java'
-	id 'application'
-}
+    id 'com.android.library'
+    //这是为了偷r8支持
+  }
 
-sourceSets {
-    main {
-        java {
-            srcDirs += "../app/src/main/java"
+android {
+namespace 'rust.rwTool'
+    compileSdkVersion 31
+    buildToolsVersion "31.0.0"
+
+    defaultConfig {
+        //applicationId "com.example.application"
+        minSdkVersion 26
+         //noinspection ExpiredTargetSdkVersion
+        targetSdkVersion 28
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
-}
-
-group = "rust.rwTool"
-version = "0.9.0"
-description = "rwTool"
-
-java {
-    archivesBaseName = "rwTool"
-    sourceCompatibility = JavaVersion.VERSION_1_8
-}
-
-jar {
-    manifest {
-        attributes 'Main-Class': 'awt.Main'
-    }
-   from {
-     configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    sourceSets {
+        main {
+        assets.srcDirs = ['src/main/assets']
+        java{
+            srcDirs += "../app/src/main/java"
+        }}
     }
 }
-
 dependencies {
-implementation fileTree(dir: "libs", include: ["*.jar"])
 compileOnly fileTree(dir: "libawt", include: ["*.jar"])
+implementation fileTree(dir: "libs", include: ["*.jar"])
 }
