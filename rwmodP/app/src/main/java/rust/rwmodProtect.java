@@ -295,7 +295,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
       String next=put.get(value, ac, cpys, buff);
       if (next != null) {
 	   zipunpack.name pathret=AllPath(next, file, type, buff, bf);
-       CharSequence path=pathret.name;
+       Object path=pathret.name;
        boolean withDefine=!value.equals(next);
        String oldPathcopy=oldmap == null ?null: iniobj.copyValue(oldmap, (String)oldmap.get("@copyFromSection"), key);
        if (!(eq || path.equals(oldPath)) && 

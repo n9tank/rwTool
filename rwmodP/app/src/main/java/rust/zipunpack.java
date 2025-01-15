@@ -1,55 +1,40 @@
 package rust;
 import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.CharBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetEncoder;
-import java.nio.charset.StandardCharsets;
+import java.nio.file.StandardOpenOption;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Random;
-import java.util.TreeSet;
-import org.libDeflate.BufOutput;
+import java.util.TreeMap;
 import org.libDeflate.UIPost;
 import org.libDeflate.ZipEntryM;
 import rust.UiHandler;
-import java.util.Arrays;
 
 public class zipunpack implements Runnable {
- public static class intkv implements Comparable {
-  public int compareTo(Object o) {
-   return this.k - ((intkv)o).k;
-  }
-  int k;
-  int v;
-  public intkv(int k, int v) {
-   this.k = k;
-   this.v = v;
-  }
- }
  File in;
+ File mmap;
  public static class name {
-  CharSequence name;
+  Object name;
   boolean conts;
-  public name(CharSequence str, boolean con) {
+  public name(Object str, boolean con) {
    name = str;
    conts = con;
   } 
  }
- public static int toName(CharSequence name) {
-  int i=name.length();
+ public static int toName(ByteBuffer name) {
+  int i=name.limit();
   if (i == 0)return 0;
-  while (name.charAt(--i) == '/');
+  while (name.get(--i) == '/');
   return ++i;
  }
- public static CharBuffer appendChar(CharBuffer buf, char c) {
+ public static ByteBuffer appendChar(ByteBuffer buf, byte c) {
   int in=buf.limit();
-  int len= buf.capacity() - in;
-  if (len == 0) {
-   CharBuffer next= buf.allocate(buf.capacity() + 12);
+  int cy=buf.capacity();
+  if (cy <= in) {
+   ByteBuffer next= buf.allocate(cy + 12);
    next.put(buf);
    next.rewind();
    buf = next;
@@ -58,13 +43,13 @@ public class zipunpack implements Runnable {
   buf.put(in, c);
   return buf;
  }
- public static name getName(CharBuffer name, HashSet set, Random ran) {
+ public static name getName(ByteBuffer name, HashSet set, Random ran) {
   boolean conts=false;
   int i=toName(name);
   name.limit(i);
   while (!set.add(name)) {
    conts = true; 
-   char c=(char)(ran.nextInt(94) + 33);
+   byte c=(byte)(ran.nextInt(94) + 33);
    name = appendChar(name, c);
   }
   return new name(name, conts);
@@ -86,7 +71,7 @@ public class zipunpack implements Runnable {
  long zipcenlen;
  long zipheadoff;
  int cenlenoff=22;
- TreeSet offtree;
+ TreeMap offtree;
  public void findEnd(FileChannel rnio) throws IOException {
   ByteBuffer buf = ByteBuffer.allocateDirect(132);
   buf.order(ByteOrder.LITTLE_ENDIAN);
@@ -138,31 +123,23 @@ public class zipunpack implements Runnable {
  }
  long tsizeoff;
  public long off(long zpos) {
+  long zipcenpos=this.zipcenpos;
+  long zipcenlen=this.zipcenlen;
   if (zpos > zipcenpos + zipcenlen)
    return zpos -= zipcenlen;
   if (zpos > zipcenpos) {
    //用于处理特殊注入壳导致无法读取
-   intkv gen=(intkv)offtree.lower(new intkv((int)(zpos - zipcenpos) , 0));
-   if (gen != null)zpos += gen.v;
+   Map.Entry<Integer,Integer> gen=offtree.lowerEntry((int)(zpos - zipcenpos));
+   if (gen != null)zpos += gen.getValue();
    zpos += tsizeoff;
   }
   return zpos;
- }
- public static void copy(ByteBuffer buf, ByteBuffer drc, int start, int end) {
-  buf.position(start);
-  buf.limit(end);
-  drc.put(buf);
-  buf.clear();
  }
  public ByteBuffer modifyEns(FileChannel rnio) throws IOException {
   long headoff=zipheadoff;
   long cenpos=zipcenpos;
   int cenlen=(int)zipcenlen;
   int time=ZipEntryM.dosTime(System.nanoTime());
-  Charset utf8set=StandardCharsets.UTF_8;
-  Charset iso=StandardCharsets.ISO_8859_1;
-  CharsetEncoder utf8seten=utf8set.newEncoder();
-  CharsetEncoder isoen=iso.newEncoder();
   ByteBuffer buf = ByteBuffer.allocateDirect((cenlen >> 2) + cenlen + 22);
   //每个条目扩张11b，完全足够不考虑扩容实现了。
   buf.order(ByteOrder.LITTLE_ENDIAN);
@@ -175,15 +152,12 @@ public class zipunpack implements Runnable {
   int lastoff=off;
   int drcoff=-off;
   HashSet set=new HashSet();
-  TreeSet<intkv> tree=new TreeSet();
+  TreeMap<Integer,Integer> tree=new TreeMap();
   offtree = tree;
   Random ran=new Random();
   int censub=buf.capacity() - 46;
   while (off <= censub) {
-   off += 8;
-   short gbit=buf.getShort(off);
-   boolean utf8=(gbit & 2048) > 0;
-   int mod=off += 2;
+   int mod=off += 10;
    int timeIn=off += 2;
    buf.putInt(off += 4, 0);//crc
    int csize=buf.getInt(off += 4);
@@ -200,27 +174,23 @@ public class zipunpack implements Runnable {
    buf.putInt(off, (int)(off(zpos32) + headoff));
    off += 4;
    buf.position(off);
-   Charset code=utf8 ?utf8set: iso;
-   buf.limit(off + namelen);
-   CharBuffer str=code.decode(buf.slice());
-   buf.limit(buf.capacity());
-   int addlen;
-   zipunpack.name type=getName(str, set, ran);
+   byte name[]=new byte[namelen];
+   buf.get(name);
+   zipunpack.name type=getName(ByteBuffer.wrap(name), set, ran);
    if (type.conts)buf.putInt(timeIn, time);
-   copy(buf, drc, lastoff, off);
-   CharBuffer nstr=(CharBuffer)type.name;
-   CharsetEncoder codeen=utf8 ?utf8seten: isoen;
-   int pos=drc.position();
-   codeen.encode(nstr, drc, true);
-   codeen.flush(drc);
-   codeen.reset();
-   addlen = drc.position() - pos - namelen;
+   buf.position(lastoff);
+   buf.limit(off);
+   drc.put(buf);
+   buf.clear();
+   ByteBuffer nstr=(ByteBuffer)type.name;
+   drc.put(nstr);
+   int addlen = nstr.limit() - namelen;
    drc.putShort(nameIndrc, (short)(namelen + addlen));
    addall += addlen;
    off += namelen;
    lastoff = off;
    if (addlen != 0)
-    tree.add(new intkv(off + drcoff - 1, addall));
+    tree.put(off + drcoff - 1, addall);
    int zip64=off;
    int exoff=exlen + off;
    while (zip64 + 4 < exoff) {
@@ -249,13 +219,15 @@ public class zipunpack implements Runnable {
    off += exlen;
    off += cmlen;
   }
-  copy(buf, drc, lastoff, off);
+  buf.position(lastoff);
+  //buf.limit(off);
+  drc.put(buf);
   return drc;
  }
  public void run() {
   Exception e=null;
   try {
-   FileChannel rnio=new RandomAccessFile(in, "rw").getChannel();
+   FileChannel rnio=FileChannel.open(in.toPath(), StandardOpenOption.READ, StandardOpenOption.WRITE);
    try {
     findEnd(rnio);
     long zipcenpos=this.zipcenpos;

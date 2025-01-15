@@ -3,7 +3,6 @@ package rust;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -11,6 +10,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.StandardOpenOption;
 import java.util.zip.GZIPInputStream;
 import org.libDeflate.ByteBufIo;
 import org.libDeflate.UIPost;
@@ -100,7 +100,7 @@ public class savedump implements Runnable {
        int ki=(int)(xmlj >> 32);
        Charset set = sets[ki];
        int k = (int)xmlj,lastPos=0;
-       FileChannel ch=new FileOutputStream(ou).getChannel();
+       FileChannel ch=FileChannel.open(ou.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
        //这里是BufferedOutputStream对于输入超过缓冲的没有优化
        //避免余剩字节导致的低于4k写出。
        ByteBufIo out=new ByteBufIo(ch, 8192);

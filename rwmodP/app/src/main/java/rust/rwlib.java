@@ -14,6 +14,9 @@ import org.libDeflate.ParallelDeflate;
 import org.libDeflate.UIPost;
 import org.libDeflate.ZipEntryOutput;
 import java.util.List;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
 public class rwlib extends loaderManager implements UIPost {
  public InputStream inp;
@@ -69,12 +72,11 @@ public class rwlib extends loaderManager implements UIPost {
    if (ou != null)ou.getParentFile().mkdirs();
    if (in != null) {
     red = ou;
-    FileChannel ch=new FileOutputStream(ou).getChannel();
     Ou = ou = null;
     try {
-     ch.transferFrom(Channels.newChannel(in), 0L, Long.MAX_VALUE);
+     Files.copy(in, red.toPath(), StandardCopyOption.REPLACE_EXISTING);
     } finally {
-     ch.close();
+     in.close();
     }
    } else red = In;
    ZipFile zip = new ZipFile(red);
