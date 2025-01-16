@@ -105,7 +105,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
   ZipEntry za=Zip.getEntry(str);
   if (za == null) {
    String low=str.toLowerCase();
-   za = (ZipEntry)lowmap.get(low);
+   if (low != str)
+    za = (ZipEntry)lowmap.get(low);
   }
   return za;
  }
@@ -489,12 +490,15 @@ public class rwmodProtect extends loaderManager implements Consumer {
    do{
     ZipEntry zipEntry=zipEntrys.nextElement();
     String fileName=zipEntry.getName();
-    String root=loader.getSuperPath(fileName).toString();
-    if (!rset.add(root) && (name == null || root.length() < name.length()))name = root;
-    lows.putIfAbsent(fileName.toLowerCase(), zipEntry);
+    String root=loader.getSuperPath(fileName);
+    if (!rset.add(root) && (name == null || root.length() < name.length()))
+     name = root;
+    String icase=fileName.toLowerCase();
+    if (icase != fileName)
+     lows.putIfAbsent(icase, zipEntry);
    }while(zipEntrys.hasMoreElements());
    rootPath = name;
-   ZipEntry inf=toPath(loader.concat(name, "mod-info.txt"));
+   ZipEntry inf=toPath(name.concat("mod-info.txt"));
    if (inf != null) {
     loader ini=new loader();
     InputStream in=zip.getInputStream(inf);

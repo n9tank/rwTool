@@ -186,9 +186,6 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
   run();
   return null;
  }
- public static String concat(String con, String str) {
-  return con.length() == 0 ?str: con.concat(str);
- }
  public void run() {
   loaderManager tas=task;
   UiHandler ui=tas.uih;
@@ -220,7 +217,7 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
          str = str.substring(5);
          con = tas.rootPath;
         } else con = file;
-        lod = tas.getLoder(concat(con, str));
+        lod = tas.getLoder(con.concat(str));
        } else lod = (loader)rwlib.libMap.get(str.substring(5).toLowerCase());
        orr[i + 1] = lod;
       }

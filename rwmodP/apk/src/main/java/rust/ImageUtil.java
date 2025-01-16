@@ -11,7 +11,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import org.pngquant;
-import org.bitmapquant;
 import java.util.HashSet;
 import java.util.BitSet;
 
@@ -41,7 +40,7 @@ public class ImageUtil {
    }
    bmp.recycle();
   }
-  byte out[]=bitmapquant.en(bit, pngquant.attr(65, 80, 1), pngquant.ARGB,  0.5f);
+  byte out[]=pngquant.en(bit, pngquant.attr(65, 80, 1), pngquant.ARGB,  0.5f);
   bit.recycle();
   return out;
  }

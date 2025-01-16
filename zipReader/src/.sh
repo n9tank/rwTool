@@ -1,0 +1,1 @@
+/system/bin/app_process -Djava.class.path="classes.dex" /system/bin zipReader

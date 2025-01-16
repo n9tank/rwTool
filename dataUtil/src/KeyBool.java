@@ -7,7 +7,7 @@ import java.util.HashSet;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-public class test2 {
+public class KeyBool {
 
  static File outPath=new File("sdcard/b");
  public static void main(String[] args) throws Exception {

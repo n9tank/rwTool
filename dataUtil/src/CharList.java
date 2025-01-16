@@ -1,4 +1,3 @@
-package rust;
 
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -9,7 +8,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.regex.Pattern;
 
-public class test {
+public class CharList {
  //private static final Pattern skip= Pattern.compile("\\p{C}");
  public static void charList(int start, int max, boolean em, BufferedWriter buff) throws Exception {
   ArrayList crr=new ArrayList();
@@ -71,31 +70,4 @@ public class test {
   buff.close();
   System.out.println();
  }
- /*
-  public static String pathStr(String str) {
-  return Paths.get(str).normalize().toString();
-  StringBuilder bf=new StringBuilder();
-  path(str, str.length(), 0, bf);
-  return bf.toString();
-  }
-  public static void path(String str, int len, int cou, StringBuilder bf) {
-  int i=len - 1;
-  boolean with=false;
-  while ((i = str.lastIndexOf('/', i) - 1) >= 0) {
-  int n=i - 1;
-  if (cou > 0 || with) {
-  len = i + 2;
-  with = cou > 0;
-  }
-  int j=n - 1;
-  if (j <= 0 || str.startsWith("/..", j)) {
-  if (j < 0 || cou <= 0) {
-  if (n > 0)path(str, n, 1, bf);
-  bf.append(str, j <= 0 ?0: i + 2, len);
-  return;
-  }
-  cou++;
-  } else cou--;
-  }
-  }*/
 }
