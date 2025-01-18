@@ -3,7 +3,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import org.pngquant;
-import org.bitmapquant;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import javax.imageio.stream.MemoryCacheImageInputStream;

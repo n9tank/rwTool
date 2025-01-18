@@ -31,6 +31,7 @@ import rust.loaders;
 import rust.rwmapOpt;
 import rust.zippack;
 import org.libDeflate.Canceler;
+import org.libDeflate.ErrorHandler;
 public class rwmodProtect extends loaderManager implements Consumer {
  HashMap lowmap;
  ConcurrentHashMap resmap;
@@ -447,7 +448,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
      loader lod=(loader)obj;
      lod.str = safeName(lod.isini ?4: 1, bf);
     }
-    UiHandler err = new UiHandler(UiHandler.ui_pool, this, back);
+    ErrorHandler err = new ErrorHandler(UiHandler.ui_pool, this);
+    err.ui = back;
     uih = err;
     try {
      for (Object obj:vl)
@@ -481,8 +483,10 @@ public class rwmodProtect extends loaderManager implements Consumer {
    ZipFile zip=new ZipFile(In);
    Zip = zip;
    out = zippack.enZip(Ou);
-   final ParallelDeflate cr = new ParallelDeflate(out, true);
-   cr.on = new UiHandler(cr.pool, this, back);
+   final ParallelDeflate cr = new ParallelDeflate(out);
+   ErrorHandler err=new ErrorHandler(cr.pool, this);
+   err.ui = back;
+   cr.on = err;
    cre = cr;
    String name=null;
    HashSet rset=new HashSet();

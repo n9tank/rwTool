@@ -86,22 +86,24 @@ fn read_cnf<I: BufRead>(
         if var.as_bytes()[0] == b'[' && matches!(var[1..].find(']'),Some(x)if x==i) {
             if var[1..].starts_with("comment_") {
                 last = None;
-                lastKey = None;
+                lastkey = None;
             } else {
                 let str = &var[1..i];
                 lastkey = Some(str.to_string());
                 last = table.get_mut(str);
             }
-        } else if lastkey.is_some() || last.is_some() {
-            let list: Vec<&str> = var.splitn(2, |c| c == ':' || c == '=');
-            if list.len() > 1 {
-                if last.is_none() {
-                    if let Some(key) = lastkey.take() {
-                        last = Some(table.entry(key).or_insert(FxHashMap::default()));
+        } else if last.is_some() || lastkey.is_some() {
+            let mut list = var.splitn(2, |c| c == ':' || c == '=');
+            if let Some(key) = list.next() {
+                if let Some(value) = list.next() {
+                    if last.is_none() {
+                        if let Some(key) = lastkey.take() {
+                            last = Some(table.entry(key).or_insert(FxHashMap::default()));
+                        }
                     }
-                }
-                if let Some(ref mut map) = last {
-                    map.insert(list[0].trim().to_string(), list[1].trim().to_string());
+                    if let Some(ref mut map) = last {
+                        map.insert(key.trim().to_string(), value.trim().to_string());
+                    }
                 }
             }
         }

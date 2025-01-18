@@ -21,6 +21,7 @@ import java.util.Scanner;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import zipReader.zipNode;
 public class zipReader implements AutoCloseable {
  public ZipFile file;
  public zipReader.zipNode root;
@@ -96,13 +97,8 @@ public class zipReader implements AutoCloseable {
   while (lastIn < len) {
    int i = str.indexOf('/', lastIn) + 1;
    String path=str.substring(lastIn, i == 0 ?len: i);
-   zipNode next = last.find(path, igronCase);
-   if (next == null) {
-    if (tryFolder && i == 0)
-     return last.find(path.concat("/"), igronCase);
-    return null;
-   }
-   last = next;
+   last = last.find(path, igronCase, i == 0);
+   if (last == null)return null;
    if (i == 0)break;
    lastIn = i ;
   }
@@ -146,11 +142,13 @@ public class zipReader implements AutoCloseable {
    if (nx != null)return nx;
    return node;
   }
-  public zipNode find(String str, boolean igroncase) {
+  public zipNode find(String str, boolean igroncase, boolean tryFolder) {
    String icase=igroncase ?str: str.toLowerCase();
    HashMap<String,zipNode> list=igroncase && icase != str ?this.caselist: this.list;
    if (list == null)return null;
-   return list.get(icase);
+   zipReader.zipNode node= list.get(icase);
+   if (node != null || !tryFolder)return node;
+   return list.get(icase.concat("/"));
   }
   public final boolean hasNodes() {
    return list != null;

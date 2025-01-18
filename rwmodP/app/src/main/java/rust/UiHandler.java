@@ -4,27 +4,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import org.libDeflate.Canceler;
-import org.libDeflate.ErrorHandler;
 import org.libDeflate.UIPost;
 
-public class UiHandler extends ErrorHandler {
+public class UiHandler {
  public static final ExecutorService ui_pool=Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
- volatile UIPost ui;
- public UiHandler(ExecutorService pool, Canceler can, UIPost on) {
-  super(pool, can);
-  ui = on;
- }
  public static void close(AutoCloseable co) {
   if (co != null) {
    try {
     co.close();
    } catch (Exception e) {}
   }
- }
- public void onClose() {
-  UIPost ui=this.ui;
-  if (ui != null)ui.accept(err);
  }
  public static File out(File path, int i, String end) {
   String name=path.getName();

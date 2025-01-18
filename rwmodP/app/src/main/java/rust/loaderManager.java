@@ -11,6 +11,7 @@ import org.libDeflate.UIPost;
 import org.libDeflate.ZipInputGet;
 import rust.iniobj;
 import rust.loader;
+import org.libDeflate.ErrorHandler;
 
 public abstract class loaderManager implements Callable,Canceler {
  String rootPath;
@@ -18,7 +19,7 @@ public abstract class loaderManager implements Callable,Canceler {
  File In;
  ZipFile Zip;
  UIPost back;
- UiHandler uih;
+ ErrorHandler uih;
  ConcurrentHashMap Zipmap;
  ParallelDeflate cre;
  public loaderManager(File in, File ou, UIPost ui) {
@@ -28,7 +29,7 @@ public abstract class loaderManager implements Callable,Canceler {
   back = ui;
  }
  public void init() {
-  UiHandler uih = new UiHandler(UiHandler.ui_pool, this, null);
+  ErrorHandler uih = new ErrorHandler(UiHandler.ui_pool, this);
   this.uih = uih;
   uih.addN(this);
  }
@@ -49,7 +50,7 @@ public abstract class loaderManager implements Callable,Canceler {
  }
  public void cancel() {
   UiHandler.close(Zip);
-  UiHandler uih=this.uih;
+  ErrorHandler uih=this.uih;
   ParallelDeflate cre=this.cre;   
   if (uih != null) {
    uih.ui = back;

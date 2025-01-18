@@ -19,6 +19,7 @@ import org.libDeflate.ZipUtil;
 import rust.loader;
 import rust.loaders;
 import java.util.regex.Pattern;
+import org.libDeflate.ErrorHandler;
 public class loader extends IoWriter implements Callable,Runnable,Comparable {
  public int compareTo(Object o) {
   if (this != o) {
@@ -188,10 +189,10 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
  }
  public void run() {
   loaderManager tas=task;
-  UiHandler ui=tas.uih;
+  ErrorHandler ui=tas.uih;
   tagw:
   try {
-   if (ini == null) {
+   if (copy == null) {
     HashMap<String, section> table=load(read.io());
     ini = table;
     loader[] orr=new loader[1];
@@ -265,8 +266,8 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
   return;
  }
  iniobj put;
- volatile loaders copy;
- volatile boolean inSet;
+ loaders copy;
+ boolean inSet;
  public boolean inSet() {
   boolean in=inSet;
   if (in)return in;

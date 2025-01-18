@@ -20,7 +20,7 @@
 - [ZipParallel](https://github.com/n9tank/ZipParallel)
 - [pngquant](https://github.com/n9tank/pngquant-android)
 
-我提供了一份armv8_64的构建文件，你可以直接使用它。
+我提供了一份armv8_64的构建文件，这可能是过时的，强烈建议自行编译。
 将编译文件放在apk/libsAAr下。
 
 ### 构建依靠库

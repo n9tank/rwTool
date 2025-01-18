@@ -49,7 +49,8 @@ public class zipunpack implements Runnable {
   name.limit(i);
   while (!set.add(name)) {
    conts = true; 
-   byte c=(byte)(ran.nextInt(94) + 33);
+   byte c=(byte)(ran.nextInt(92) + 33);
+   if (c == '/' | c == '\\')++c;
    name = appendChar(name, c);
   }
   return new name(name, conts);

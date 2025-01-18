@@ -17,6 +17,7 @@ import java.util.List;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import org.libDeflate.ErrorHandler;
 
 public class rwlib extends loaderManager implements UIPost {
  public InputStream inp;
@@ -83,8 +84,10 @@ public class rwlib extends loaderManager implements UIPost {
    Zip = zip;
    if (ou != null) {
     ZipEntryOutput out = zippack.zip(ou);
-    ParallelDeflate cre = new ParallelDeflate(out, true);
-    cre.on = new UiHandler(cre.pool, cre, this);
+    ParallelDeflate cre = new ParallelDeflate(out);
+    ErrorHandler err= new ErrorHandler(cre.pool, cre);
+    err.ui = this;
+    cre.on = err;
     this.cre = cre;
    }
    Enumeration<? extends ZipEntry> ens=zip.entries();

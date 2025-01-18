@@ -11,6 +11,7 @@ import org.libDeflate.ZipEntryM;
 import org.libDeflate.ZipEntryOutput;
 import org.libDeflate.ZipInputGet;
 import org.libDeflate.ZipUtil;
+import org.libDeflate.ErrorHandler;
 
 public class zippack implements Runnable,UIPost {
  File in;
@@ -25,8 +26,8 @@ public class zippack implements Runnable,UIPost {
   ui = u;
  }
  public static void writeOrCopy(ParallelDeflate para, ZipFile zipf, ZipEntry en, ZipEntryM zip, boolean raw) throws Throwable {
-  if (!raw || en.getMethod() <= 0 || zip.mode <= 0)para.writeToZip(new ZipInputGet(zipf, en, false), zip);
-  else para.copyToZip(new ZipInputGet(zipf, en, true), zip);
+  boolean wraw= raw && en.getMethod() > 0 && zip.mode > 0;
+  para.writeToZip(new ZipInputGet(zipf, en, wraw), zip, wraw);
  }
  public static ZipEntryOutput zip(File ou) throws Exception {
   ZipEntryOutput out= new ZipEntryOutput(ou);
@@ -56,8 +57,10 @@ public class zippack implements Runnable,UIPost {
    ZipFile zip= new ZipFile(in);
    this.Zip = zip;
    try {
-    ParallelDeflate cr=new ParallelDeflate(enZip(ou), true);
-    cr.on = new UiHandler(cr.pool, cr, this);
+    ParallelDeflate cr=new ParallelDeflate(enZip(ou));
+    ErrorHandler err = new ErrorHandler(cr.pool, cr);
+    err.ui = this;
+    cr.on = err;
     try {
      Enumeration all=zip.entries();
      while (all.hasMoreElements()) {
