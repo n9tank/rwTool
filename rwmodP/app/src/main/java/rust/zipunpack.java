@@ -72,7 +72,6 @@ public class zipunpack implements Runnable {
  long zipcenlen;
  long zipheadoff;
  int cenlenoff=22;
- TreeMap offtree;
  public void findEnd(FileChannel rnio) throws IOException {
   ByteBuffer buf = ByteBuffer.allocateDirect(132);
   buf.order(ByteOrder.LITTLE_ENDIAN);
@@ -123,6 +122,8 @@ public class zipunpack implements Runnable {
   return;
  }
  long tsizeoff;
+ TreeMap offtree;
+ //TreeSet能提供更少的对象和更好的性能，不过这不是性能瓶颈，所以以编译大小优先。
  public long off(long zpos) {
   long zipcenpos=this.zipcenpos;
   long zipcenlen=this.zipcenlen;
@@ -221,7 +222,6 @@ public class zipunpack implements Runnable {
    off += cmlen;
   }
   buf.position(lastoff);
-  //buf.limit(off);
   drc.put(buf);
   return drc;
  }

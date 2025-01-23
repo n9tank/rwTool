@@ -15,11 +15,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import org.libDeflate.ErrorHandler;
 import org.libDeflate.ParallelDeflate;
 import org.libDeflate.UIPost;
 import org.libDeflate.ZipEntryM;
@@ -30,8 +32,6 @@ import rust.loader;
 import rust.loaders;
 import rust.rwmapOpt;
 import rust.zippack;
-import org.libDeflate.Canceler;
-import org.libDeflate.ErrorHandler;
 public class rwmodProtect extends loaderManager implements Consumer {
  HashMap lowmap;
  ConcurrentHashMap resmap;
@@ -436,27 +436,35 @@ public class rwmodProtect extends loaderManager implements Consumer {
   loader lod=(loader)obj;
   lod.put.as();
  }
- int endtype;
+ public int endtype;
  public void end() {
   switch (endtype++) {
    case 0:
-    List vl=Arrays.asList(Zipmap.values().toArray());
-    vl.parallelStream().forEach(this);
-    Collections.shuffle(vl);
-    StringBuilder bf=new StringBuilder();
-    for (Object obj:vl) {
-     loader lod=(loader)obj;
-     lod.str = safeName(lod.isini ?4: 1, bf);
-    }
-    ErrorHandler err = new ErrorHandler(UiHandler.ui_pool, this);
-    err.ui = back;
-    uih = err;
+    final List<Object> iniList = Arrays.asList(Zipmap.values().toArray());
     try {
-     for (Object obj:vl)
-      asyncAdd((loader)obj);
-    } catch (Exception e) {
-    }
-    err.pop();
+     //不用java默认的ForkJoinPool.commonPool()
+     ParallelDeflate.pool.execute(new Runnable(){
+       public void run() {
+        rwmodProtect rwmod= rwmodProtect.this;
+        iniList.parallelStream().forEach(rwmod);
+        Collections.shuffle(iniList);
+        StringBuilder bf=new StringBuilder();
+        for (Object obj:iniList) {
+         loader lod=(loader)obj;
+         lod.str = safeName(lod.isini ?4: 1, bf);
+        }
+        ErrorHandler err = new ErrorHandler(UiHandler.ui_pool, rwmod);
+        err.ui = back;
+        uih = err;
+        try {
+         for (Object obj:iniList)
+          asyncAdd((loader)obj);
+        } catch (Exception e) {
+        }
+        err.pop();
+       }
+      });
+    } catch (Exception e) {}
     break;
    case 1:
     uih = null;

@@ -5,9 +5,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.nio.CharBuffer;
 
 public class iniobj {
  public HashMap put;
@@ -26,13 +23,14 @@ public class iniobj {
   put = map;
  }
  public static void put(HashMap src, HashMap drc) {
+  MapResize resize=new MapResize();
   for (Map.Entry<String,section>en:(Set<Map.Entry>)drc.entrySet()) {
    String ac=en.getKey();
    HashMap list=null;
    section cpy = (section)src.get(ac);
-   if (cpy != null) {
+   if (cpy != null)
     list = cpy.m;
-   } else {
+   else {
     cpy = new section();
     src.put(ac, cpy);
    }
@@ -42,18 +40,20 @@ public class iniobj {
     section cp = en.getValue();
     HashMap listdrc=cp.m;
     if (list == null)cpy.m = (HashMap)listdrc.clone();
-    else {
-	 list.putAll(new MapResize(listdrc));   
-	 for (Map.Entry en2:(Set<Map.Entry>)listdrc.entrySet())
-      list.putIfAbsent(en2.getKey(), en2.getValue());
-    }
+    else putIfAll(resize, list, listdrc);
    }
   }
- }	
+ }
  public void put(iniobj drc) {
   put(put, drc.put);
  }
- void asFor(section cpy) {
+ public static final void putIfAll(MapResize resize, HashMap list, HashMap listdrc) {
+  resize.size = listdrc.size();
+  list.putAll(resize);   
+  for (Map.Entry en:(Set<Map.Entry>)listdrc.entrySet())
+   list.putIfAbsent(en.getKey(), en.getValue());
+ }
+ public void asFor(section cpy) {
   //copyFrom去重由于luke的屎容易引发BUG，应该交给开发者自己处理
   HashMap map=put;
   HashMap hash=cpy.m;
@@ -88,9 +88,7 @@ public class iniobj {
    }
    if (copy != null) {
 	cpy.copy = copy;
-	hash.putAll(new MapResize(copy));
-	for (Map.Entry en:(Set<Map.Entry>)copy.entrySet())
-	 hash.putIfAbsent(en.getKey(), en.getValue());
+    putIfAll(new MapResize(), hash, copy);
    }
   }
  }
@@ -215,7 +213,7 @@ public class iniobj {
    }
   }
  }
- String get(String str, String eqz, section cpy, StringBuilder buff) {
+ String get(String str, String thisSectionKey, section thisSection, StringBuilder buff) {
   buff.setLength(0);
   int i=0,j=0;
   while ((i = str.indexOf("${", i)) >= 0) {
@@ -223,37 +221,39 @@ public class iniobj {
    j = i;
    int n=str.indexOf('}', i += 2);
    if (n < 0)break;
-   String key=str.substring(i, n).trim();
-   if (key.length() > 0) {
+   String matcher=str.substring(i, n).trim();
+   //实际上应该考虑其他空字符，不过为了省事就这样
+   if (matcher.length() > 0) {
     int st=buff.length();
     int groupst=0;
     int lastst=0;
-    while ((groupst = indexOfDefine(key, groupst)) >= 0) {
-     buff.append(key, lastst, groupst);
+    while ((groupst = indexOfDefine(matcher, groupst)) >= 0) {
+     buff.append(matcher, lastst, groupst);
      lastst = groupst;
-     groupst = nextDefine(key, groupst);
-     String group=key.substring(lastst, groupst);
+     groupst = nextDefine(matcher, groupst);
+     String group=matcher.substring(lastst, groupst);
      if (!set.contains(group)) {
       Object o=null;
       int spiltIn=group.indexOf('.');
-      String keyv=spiltIn < 0 ?group: group.substring(0, spiltIn);
+      String key=spiltIn < 0 ?group: group.substring(0, spiltIn);
       if (spiltIn >= 0) {
-       if (!keyv.equals("section") && !key.equals(eqz)) {
-        cpy = (section)put.get(keyv);
+       section cpy;
+       if (!key.equals("section") && !key.equals(thisSectionKey)) {
+        cpy = (section)put.get(key);
         if (cpy == null)return null;
-       }
+       } else cpy = thisSection;
        o = cpy.m.get(group.substring(spiltIn + 1));
       } else {
-       o = cpy.m.get("@define ".concat(keyv));
-       if (o == null)o = gl.get(keyv);
+       o = thisSection.m.get("@define ".concat(key));
+       if (o == null)o = gl.get(key);
       }
       if (o == null)return null;
       buff.append(o);
       lastst = groupst;
      }
     }
-    buff.append(key, lastst, key.length());
-    if (indexOfChars(key, mathExp) >= 0) {
+    buff.append(matcher, lastst, matcher.length());
+    if (indexOfChars(matcher, mathExp) >= 0) {
      double b= MathExp.get(buff.subSequence(st, buff.length()));
      buff.setLength(st);
      int intd=(int)b;

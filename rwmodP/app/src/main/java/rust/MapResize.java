@@ -1,16 +1,11 @@
 package rust;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.Map.Entry;
 
 public class MapResize implements Map {
- int size;
- public MapResize(Map Map) {
-  this.size = Map.size();
- }
+ public int size;
  public int size() {
   return size;
  }
