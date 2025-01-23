@@ -215,7 +215,7 @@ public class iniobj {
    }
   }
  }
- String get(String str, String eqz, section cpy, StringBuilder buff) {
+ String get(String str, String thisSectionKey, section thisSection, StringBuilder buff) {
   buff.setLength(0);
   int i=0,j=0;
   while ((i = str.indexOf("${", i)) >= 0) {
@@ -223,37 +223,39 @@ public class iniobj {
    j = i;
    int n=str.indexOf('}', i += 2);
    if (n < 0)break;
-   String key=str.substring(i, n).trim();
-   if (key.length() > 0) {
+   String matcher=str.substring(i, n).trim();
+   //实际上应该考虑其他空字符，不过为了省事就这样
+   if (matcher.length() > 0) {
     int st=buff.length();
     int groupst=0;
     int lastst=0;
-    while ((groupst = indexOfDefine(key, groupst)) >= 0) {
-     buff.append(key, lastst, groupst);
+    while ((groupst = indexOfDefine(matcher, groupst)) >= 0) {
+     buff.append(matcher, lastst, groupst);
      lastst = groupst;
-     groupst = nextDefine(key, groupst);
-     String group=key.substring(lastst, groupst);
+     groupst = nextDefine(matcher, groupst);
+     String group=matcher.substring(lastst, groupst);
      if (!set.contains(group)) {
       Object o=null;
       int spiltIn=group.indexOf('.');
-      String keyv=spiltIn < 0 ?group: group.substring(0, spiltIn);
+      String key=spiltIn < 0 ?group: group.substring(0, spiltIn);
       if (spiltIn >= 0) {
-       if (!keyv.equals("section") && !key.equals(eqz)) {
-        cpy = (section)put.get(keyv);
+       section cpy;
+       if (!key.equals("section") && !key.equals(thisSectionKey)) {
+        cpy = (section)put.get(key);
         if (cpy == null)return null;
-       }
+       } else cpy = thisSection;
        o = cpy.m.get(group.substring(spiltIn + 1));
       } else {
-       o = cpy.m.get("@define ".concat(keyv));
-       if (o == null)o = gl.get(keyv);
+       o = thisSection.m.get("@define ".concat(key));
+       if (o == null)o = gl.get(key);
       }
       if (o == null)return null;
       buff.append(o);
       lastst = groupst;
      }
     }
-    buff.append(key, lastst, key.length());
-    if (indexOfChars(key, mathExp) >= 0) {
+    buff.append(matcher, lastst, matcher.length());
+    if (indexOfChars(matcher, mathExp) >= 0) {
      double b= MathExp.get(buff.subSequence(st, buff.length()));
      buff.setLength(st);
      int intd=(int)b;

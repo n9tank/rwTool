@@ -5,9 +5,10 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.libDeflate.UIPost;
+import org.libDeflate.ParallelDeflate;
 
 public class UiHandler {
- public static final ExecutorService ui_pool=Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+ public static final ExecutorService ui_pool=Executors.newFixedThreadPool(ParallelDeflate.CPU);
  public static void close(AutoCloseable co) {
   if (co != null) {
    try {

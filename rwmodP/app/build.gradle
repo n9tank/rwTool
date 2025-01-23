@@ -44,8 +44,14 @@ namespace 'rust.rwTool'
 			}
     }
 }
-
+repositories {
+flatDir {
+dirs "libs"
+}
+}
 dependencies {
-//implementation fileTree("libsAAr")
-implementation fileTree(dir: "libs", include: ["*.jar"])
+api ":app-release"
+api ":lib-release"
+api ":png-release"
+implementation fileTree(dir: "jar", include: ["*.jar"])
 }

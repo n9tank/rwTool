@@ -6,7 +6,6 @@ package="rust.rwTool">
 <application
 android:icon="@drawable/icon"
 android:requestLegacyExternalStorage="true"
-android:hardwareAccelerated="false"  
 android:extractNativeLibs="true"
 android:largeHeap = "true"    
 android:label="@string/app_name"
