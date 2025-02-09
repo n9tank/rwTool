@@ -166,6 +166,8 @@ public class iniobj {
   }
   return -1;
  }
+ //用于解决正则表达式太慢的问题（10倍差距）
+ //如果提供更多的方法可以避免String的复制开销，不过没必要
  public static String trims(String str) {
   int off=0;
   int len=str.length();

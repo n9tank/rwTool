@@ -22,6 +22,7 @@ public class KeyBool {
   JSONObject js=pare(new File("sdcard/a"));
   JSONArray list= js.getJSONArray("单位代码");
   HashSet set=new HashSet();
+  HashSet re=new HashSet();
   BufferedWriter buff=new BufferedWriter(new FileWriter(outPath));
   boolean isclose=false;
   for (int i=0;i < list.length();++i) {
@@ -47,18 +48,24 @@ public class KeyBool {
     char c=key.charAt(0);
     if (Character.isLowerCase(c) || Character.isUpperCase(c) || c == '@') {
      String type=obj.optString("key值类型", "string");
-     if (!"dont_load".equals(key) && "bool".equals(type)) {
+     if ("bool".equals(type)) {
       String[] lv=key.split("_");
       if (lv.length > 1 && ("#".equals(lv[1]) || "TYPE".equals(lv[1]))) {
        continue;
       }
-      if (set.add(key)) {
-       buff.write(key);
-       buff.write(',');
+      set.add(key);
+     } else if ("LogicBoolean".equals(type)) {
+      if (set.contains(key)) {
+       re.add(key);
       }
      }
     }
    }
+  }
+  set.removeAll(re);
+  for (String str:set) {
+   buff.write(str);
+   buff.write(',');
   }
   buff.write("action_,");
   buff.write("builtFrom_,");

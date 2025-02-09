@@ -1,23 +1,20 @@
 package rust;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
+import org.libDeflate.ErrorHandler;
 import org.libDeflate.ParallelDeflate;
 import org.libDeflate.UIPost;
 import org.libDeflate.ZipEntryOutput;
-import java.util.List;
-import java.nio.file.StandardOpenOption;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import org.libDeflate.ErrorHandler;
+import org.libDeflate.zipEntry;
+import org.libDeflate.zipFile;
 
 public class rwlib extends loaderManager implements UIPost {
  public InputStream inp;
@@ -32,7 +29,7 @@ public class rwlib extends loaderManager implements UIPost {
   rwlib.last = this;
  }
  public loader getLoder(String str) throws Throwable {
-  ZipEntry za=Zip.getEntry(Ou == null ?str: "assets/units/".concat(str));
+  zipEntry za=Zip.ens.get(Ou == null ?str: "assets/units/".concat(str));
   return addLoder(za, str, "/", str, false);
  }
  public static void tolow(Map src) {
@@ -55,7 +52,7 @@ public class rwlib extends loaderManager implements UIPost {
  }
  public static void gc(loader lod) {
   lod.ini = null;
-  lod.read = null;
+  lod.ze = null;
   lod.copy = null;
   lod.task = null;
  }
@@ -80,7 +77,7 @@ public class rwlib extends loaderManager implements UIPost {
      in.close();
     }
    } else red = In;
-   ZipFile zip = new ZipFile(red);
+   zipFile zip = new zipFile(red);
    Zip = zip;
    if (ou != null) {
     ZipEntryOutput out = zippack.zip(ou);
@@ -90,10 +87,8 @@ public class rwlib extends loaderManager implements UIPost {
     cre.on = err;
     this.cre = cre;
    }
-   Enumeration<? extends ZipEntry> ens=zip.entries();
-   while (ens.hasMoreElements()) {
-    ZipEntry zipe=ens.nextElement();
-    String name = zipe.getName();
+   for (zipEntry zipe:zip.ens.values()) {
+    String name = zipe.name;
     if (ou == null || (name.endsWith("i") && name.charAt(7) == 'u')) {
      if (ou != null)name = name.substring(13);
      addLoder(zipe, name, "/", name, false);

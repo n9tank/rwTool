@@ -1,32 +1,32 @@
 package rust;
 
-import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 import org.libDeflate.ErrorHandler;
+import org.libDeflate.NioReader;
 import org.libDeflate.ParallelDeflate;
 import org.libDeflate.UIPost;
 import org.libDeflate.ZipEntryM;
 import org.libDeflate.ZipEntryOutput;
+import org.libDeflate.ZipInputGet;
 import org.libDeflate.ZipUtil;
+import org.libDeflate.zipEntry;
+import org.libDeflate.zipFile;
 import rust.iniobj;
 import rust.loader;
 import rust.loaders;
@@ -53,15 +53,15 @@ public class rwmodProtect extends loaderManager implements Consumer {
   raw = rw;  
  }
  public loader getLoder(String str) throws Throwable {
-  ZipEntry za=toPath(str);
+  zipEntry za=toPath(str);
   if (za == null)return null;
-  str = za.getName();
+  str = za.name;
   return addLoder(za, str, str, null, getType(str) == 4);
  }
  public static HashSet toSet(String str) {
   String[] list=str.split(",");
   int len=list.length;
-  HashSet add=new HashSet(len + (len >> 1));
+  HashSet add=new HashSet((len << 2 / 3) + 1);
   Collections.addAll(add, list);
   return add;
  }
@@ -102,12 +102,12 @@ public class rwmodProtect extends loaderManager implements Consumer {
  public static String path(String str) {
   return Paths.get(str).normalize().toString();
  }
- public ZipEntry toPath(String str) {
-  ZipEntry za=Zip.getEntry(str);
+ public zipEntry toPath(String str) {
+  zipEntry za=Zip.ens.get(str);
   if (za == null) {
    String low=str.toLowerCase();
    if (low != str)
-    za = (ZipEntry)lowmap.get(low);
+    za = (zipEntry)lowmap.get(low);
   }
   return za;
  }
@@ -352,13 +352,13 @@ public class rwmodProtect extends loaderManager implements Consumer {
   if (i <= 0)i = add.length();
   if (maxSplit > 0)buff.append("ROOT:");
   String str = add.substring(0, i);
-  ZipEntry ze = toPath(str);
+  zipEntry ze = toPath(str);
   if (ze != null) {
-   String name=ze.getName();
+   String name=ze.name;
    Object obj = resmap.put(name, "");
    if (obj == null) {
 	resmap.put(name, str = safeName(getType(name), bf));
-	ZipEntryM outen=ZipUtil.newEntry(str, type <= 0 ?0: 12);
+	ZipEntryM outen=ZipUtil.newEntry(str, 12);
 	zippack.writeOrCopy(cre, Zip, ze, outen, raw);
    } else {
 	while (obj == "")
@@ -488,7 +488,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
   lowmap = lows;
   StringBuilder mbuff = new StringBuilder();
   try {
-   ZipFile zip=new ZipFile(In);
+   zipFile zip=new zipFile(In);
    Zip = zip;
    out = zippack.enZip(Ou);
    final ParallelDeflate cr = new ParallelDeflate(out);
@@ -498,25 +498,21 @@ public class rwmodProtect extends loaderManager implements Consumer {
    cre = cr;
    String name=null;
    HashSet rset=new HashSet();
-   Enumeration<? extends ZipEntry> zipEntrys=zip.entries();
-   do{
-    ZipEntry zipEntry=zipEntrys.nextElement();
-    String fileName=zipEntry.getName();
+   for (zipEntry zipEntry:zip.ens.values()) {
+    String fileName=zipEntry.name;
     String root=loader.getSuperPath(fileName);
     if (!rset.add(root) && (name == null || root.length() < name.length()))
      name = root;
     String icase=fileName.toLowerCase();
     if (icase != fileName)
      lows.putIfAbsent(icase, zipEntry);
-   }while(zipEntrys.hasMoreElements());
+   }
    rootPath = name;
-   ZipEntry inf=toPath(name.concat("mod-info.txt"));
+   zipEntry inf=toPath(name.concat("mod-info.txt"));
    if (inf != null) {
     loader ini=new loader();
-    InputStream in=zip.getInputStream(inf);
-    if (inf.getMethod() > 0)in = new BufferedInputStream(in, Math.min(8192, in.available()));
-    HashMap info=loader.load(in);
-    section cp=(section)info.get("music");
+    HashMap<String, section> info=loader.load(ZipInputGet.reader(zip, inf, StandardCharsets.UTF_8));
+    section cp=info.get("music");
     if (cp != null) {
      HashMap map=cp.m;
      String str =(String)map.get("sourceFolder");
@@ -533,11 +529,9 @@ public class rwmodProtect extends loaderManager implements Consumer {
     ini.ini = info;
     ini.with(cre, "mod-info.txt/");
    }
-   ArrayList<ZipEntry> ogg=new ArrayList();
-   zipEntrys = zip.entries();
-   do{
-    ZipEntry zipEntry=zipEntrys.nextElement();
-    name = zipEntry.getName();
+   ArrayList<zipEntry> ogg=new ArrayList();
+   for (zipEntry zipEntry:zip.ens.values()) {
+    name = zipEntry.name;
 	int type=getType(name);
 	if (type == 4) {
 	 addLoder(zipEntry, name, name, null, true);
@@ -546,10 +540,10 @@ public class rwmodProtect extends loaderManager implements Consumer {
 	} else if (type >= 5) {
      ogg.add(zipEntry);
     }
-   }while(zipEntrys.hasMoreElements());
+   }
    Collections.shuffle(ogg);
-   for (ZipEntry en:ogg)
-    zippack.writeOrCopy(cre, zip, en, ZipUtil.newEntry(safeName(getType(en.getName()), mbuff), 12), raw);
+   for (zipEntry en:ogg)
+    zippack.writeOrCopy(cre, zip, en, ZipUtil.newEntry(safeName(getType(en.name), mbuff), 12), raw);
   } catch (Throwable e) {
    uih.onError(e);
   }

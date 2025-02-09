@@ -12,14 +12,18 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import org.libDeflate.InputGet;
+import org.libDeflate.ErrorHandler;
 import org.libDeflate.IoWriter;
+import org.libDeflate.NioReader;
 import org.libDeflate.ParallelDeflate;
+import org.libDeflate.ZipInputGet;
 import org.libDeflate.ZipUtil;
+import org.libDeflate.zipEntry;
 import rust.loader;
 import rust.loaders;
-import java.util.regex.Pattern;
-import org.libDeflate.ErrorHandler;
+import java.io.BufferedInputStream;
+import java.nio.channels.Channels;
+import java.nio.ByteBuffer;
 public class loader extends IoWriter implements Callable,Runnable,Comparable {
  public int compareTo(Object o) {
   if (this != o) {
@@ -37,7 +41,7 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
  }
  public static int utf8len(CharSequence str) {
   int len=str.length() ;
-  return (len << 1) - (len >> 1);
+  return len + (len >> 1);
   //1.5倍容量，最大3倍
  }
  public static HashSet boolset;
@@ -81,7 +85,7 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
    }
   }
   bufSize = all;
-  para.with(this, ZipUtil.newEntry(str, 12));
+  para.with(this, ZipUtil.newEntry(str, 12), false);
  }
  public void flush() throws Exception {
   BufferedWriter buf=getWriter(StandardCharsets.UTF_8);
@@ -108,8 +112,27 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
    buf.close();
   }
  }
+ public static InputStream loop(final InputStream input) {
+  return new InputStream(){
+   public int read() {
+    return 0;
+   }
+   public int read(byte b[], int off, int len) throws IOException {
+    int i=0;
+    while (true) {
+     int n= input.read(b, off + i, len - i);
+     if (n > 0)i += n;
+     else return i == 0 ?-1: i;
+    }
+   }
+   public void close() throws IOException {
+    input.close();
+   }
+  };
+ }
  public static HashMap<String,section> load(InputStream read) throws IOException {
-  return load(new BufferedReader(new InputStreamReader(read), Math.min(read.available(), 8192)));
+  //现在与NioReader是一样的性能
+  return load(new BufferedReader(new InputStreamReader(loop(read))));
  }
  public static final char[] split=new char[]{':','='};
  public static HashMap<String,section> load(BufferedReader buff) throws IOException {
@@ -177,12 +200,6 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
   }
   return table;
  }
- /*
-  public static final Pattern pathtrim=Pattern.compile("^/+");
-  public static final Pattern coretrim=Pattern.compile("^CORE:/*");
-  public static String PathTrim(Pattern path, String str) {
-  return path.matcher(str).replaceFirst("");
-  }*/
  public Object call() {
   run();
   return null;
@@ -193,7 +210,7 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
   tagw:
   try {
    if (copy == null) {
-    HashMap<String, section> table=load(read.io());
+    HashMap<String, section> table=load(ZipInputGet.reader(tas.Zip, ze, StandardCharsets.UTF_8));
     ini = table;
     loader[] orr=new loader[1];
     //请不要定义未使用的ini。该版本移除了检查，便于并行
@@ -283,7 +300,7 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
  HashMap ini;
  String str;
  String src;
- InputGet read;
+ zipEntry ze;
  loaderManager task;
  static String getName(String file) {
   int len=file.length();

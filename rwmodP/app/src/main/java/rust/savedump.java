@@ -1,6 +1,5 @@
 package rust;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -56,7 +55,7 @@ public class savedump implements Runnable {
   int len=brr.length;
   while (off < len) {
    int n = in.read(brr, off, len - off);
-   if (n < 0)return off;
+   if (n <= 0)return off;
    off += n;
   }
   return off;
@@ -64,18 +63,16 @@ public class savedump implements Runnable {
  public void run() {
   Throwable ex=null;
   try {
-   BufferedInputStream buff=new BufferedInputStream(new FileInputStream(in));
+   FileInputStream io=new FileInputStream(in);
    try {
     byte[] brr=new byte[8207];
-    buff.mark(0);
-    int len= buff.read(brr, 0, 8192) - 1;
+    int len= io.read(brr, 0, 128) - 1;
     int i=0;
     while (i < len)
      if (brr[i++] == (byte)0x1f && brr[i] == (byte)0x8b)break;
     if (i > 0) {
-     buff.reset();
-     buff.skip(--i);
-     GZIPInputStream gz=new GZIPInputStream(buff, 1024);
+     io.getChannel().position(--i);
+     GZIPInputStream gz=new GZIPInputStream(io, Math.min(io.available(), 8182));
      try {
       int l;
       int off=0;
@@ -153,7 +150,7 @@ public class savedump implements Runnable {
      }
     }
    } finally {
-    buff.close();
+    io.close();
    }
   } catch (Throwable e) {
    ex = e;

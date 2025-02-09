@@ -4,20 +4,21 @@ import java.util.HashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 import org.libDeflate.Canceler;
+import org.libDeflate.ErrorHandler;
 import org.libDeflate.ParallelDeflate;
 import org.libDeflate.UIPost;
 import org.libDeflate.ZipInputGet;
+import org.libDeflate.zipFile;
 import rust.iniobj;
 import rust.loader;
-import org.libDeflate.ErrorHandler;
+import org.libDeflate.zipEntry;
 
 public abstract class loaderManager implements Callable,Canceler {
  String rootPath;
  File Ou;
  File In;
- ZipFile Zip;
+ zipFile Zip;
  UIPost back;
  ErrorHandler uih;
  ConcurrentHashMap Zipmap;
@@ -33,7 +34,7 @@ public abstract class loaderManager implements Callable,Canceler {
   this.uih = uih;
   uih.addN(this);
  }
- public loader addLoder(ZipEntry za, String putkey, String src, String str, boolean isini) throws Throwable {
+ public loader addLoder(zipEntry za, String putkey, String src, String str, boolean isini) throws Throwable {
   loader lod = new loader();
   loader obj=(loader)Zipmap.putIfAbsent(putkey, lod);
   if (obj == null) {
@@ -41,9 +42,7 @@ public abstract class loaderManager implements Callable,Canceler {
    lod.src = src;
    lod.str = str;
    lod.task = this;
-   ZipInputGet inget=new ZipInputGet(Zip, za, false);
-   inget.buf = true;
-   lod.read = inget;
+   lod.ze = za;
    uih.add(lod);
   } else lod = obj;
   return lod;
