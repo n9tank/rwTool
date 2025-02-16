@@ -1,6 +1,7 @@
 package rust;
 
 import java.util.Arrays;
+import java.nio.ByteBuffer;
 
 public class BMFind {
  public byte bad[];
@@ -11,10 +12,10 @@ public class BMFind {
   good = good(drc, re);
   this.drc = drc;
  }
- public int indexOf(byte[] src, int start, int end) {
+ public int indexOf(ByteBuffer src, int start, int end) {
   return BMFind(src, drc, good, bad, start, end, false);
  }
- public int lastIndexOf(byte[] src, int start, int end) {
+ public int lastIndexOf(ByteBuffer src, int start, int end) {
   return BMFind(src, drc, good, bad, start, end, true);
  }
  public static byte[] bad(byte src[], boolean re) {
@@ -62,25 +63,25 @@ public class BMFind {
   }
   return list;
  }
- public static int BMFind(byte src[], byte drc[], byte good[], byte bad[], int start, int end, boolean re) {
+ public static int BMFind(ByteBuffer src, byte drc[], byte good[], byte bad[], int start, int end, boolean re) {
   int plen=drc.length;
   int nlen=plen - 1;
   int i,j;
   if (!re) {
    for (i = nlen + start;i < end;) {
-    for (j = plen;src[i] == drc[--j];--i) {
+    for (j = plen;src.get(i) == drc[--j];--i) {
      if (j == 0)return i;
     }
-    int c=src[i];
+    int c=src.get(i);
     i += Math.max(good[j], c < 0 ?nlen: bad[c]);
    }
   } else {
    for (i = end - plen;i >= start;) {
     int n;
-    for (j = plen;src[i] == drc[n = nlen - (--j)]; ++i) {
+    for (j = plen;src.get(i) == drc[n = nlen - (--j)]; ++i) {
      if (j == 0) return i;
     }
-    int c = src[i];
+    int c = src.get(i);
     i -= Math.max(good[n], c < 0 ? nlen : bad[c]);
    }
   }

@@ -581,7 +581,7 @@ public class rwmapOpt implements Runnable {
       data.getAttributes().getNamedItem("compression").setNodeValue("zlib");
       data.setTextContent(new String(Base64.getEncoder().encode(result).array()));
      }
-     BufferedWriter buff=new BufferedWriter(new BufWriter(new ByteBufIo(FileChannel.open(ou.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE), 8192), StandardCharsets.UTF_8));
+     BufferedWriter buff=new BufferedWriter(new BufWriter(new ByteBufIo(FileChannel.open(ou.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE), RC.IOSIZE), StandardCharsets.UTF_8));
      try {
       outxml(document, buff);
      } finally {

@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import org.libDeflate.NioReader;
 import org.libDeflate.ParallelDeflate;
+import org.libDeflate.RC;
 import rust.UiHandler;
 import rust.loader;
 import rust.loaderManager;
@@ -122,7 +123,7 @@ public class Main extends Activity {
    HashMap io;
    File ini = new File(su, ".ini");
    if (ini.exists())
-    io = loader.load(new BufferedReader(new NioReader(FileChannel.open(ini.toPath(), StandardOpenOption.READ), 8192, StandardCharsets.UTF_8)));
+    io = loader.load(new BufferedReader(new NioReader(FileChannel.open(ini.toPath(), StandardOpenOption.READ),RC.IOSIZE, StandardCharsets.UTF_8)));
    else 
     io = loader.load(getResources().openRawResource(R.raw.def));
    rwmodProtect.init(io);

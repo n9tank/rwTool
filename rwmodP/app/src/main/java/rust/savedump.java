@@ -1,18 +1,19 @@
 package rust;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.StandardOpenOption;
-import java.util.zip.GZIPInputStream;
+import me.steinborn.libdeflate.Libdeflate;
+import me.steinborn.libdeflate.LibdeflateDecompressor;
+import org.libDeflate.BufOutput;
 import org.libDeflate.ByteBufIo;
 import org.libDeflate.UIPost;
+import org.libDeflate.RC;
 
 public class savedump implements Runnable {
  File in;
@@ -39,10 +40,10 @@ public class savedump implements Runnable {
    list[i] = new BMFind(str.getBytes(sets[i]), re);
   return list;
  }
- public static long findsMin(byte arr[], BMFind finds[], int end) {
+ public static long findsMin(ByteBuffer buf, BMFind finds[], int end) {
   int k=Integer.MAX_VALUE,v=-1;
   for (int i=0,size=finds.length;i < size;++i) {
-   int j=finds[i].indexOf(arr, 0, end);
+   int j=finds[i].indexOf(buf, 0, end);
    if (j < k) {
     k = j;
     v = i;
@@ -51,103 +52,120 @@ public class savedump implements Runnable {
   if (v >= 0)return (v << 32) | k;
   return -1;
  }
- public static int readLoop(InputStream in, byte brr[], int off) throws IOException {
-  int len=brr.length;
-  while (off < len) {
-   int n = in.read(brr, off, len - off);
-   if (n <= 0)return off;
-   off += n;
+ public static ByteBuffer readLoop(LibdeflateDecompressor def, ByteBuffer src, ByteBuffer drc) throws IOException {
+  boolean isfisrt=true;
+  while (src.hasRemaining() && drc.hasRemaining()) {
+   int size=def.decompress(src, drc);
+   if (size <= 0) {
+    if (size == 0)
+     return drc;
+    else if (isfisrt) {
+     drc = BufOutput.copy(drc, ((drc.capacity() - 15) << 1) + 15);
+     continue;
+    } else break;
+   }
+   isfisrt = false;
   }
-  return off;
+  return drc;
  }
  public void run() {
   Throwable ex=null;
   try {
-   FileInputStream io=new FileInputStream(in);
+   FileChannel io=FileChannel.open(in.toPath(), StandardOpenOption.READ);
    try {
-    byte[] brr=new byte[8207];
-    int len= io.read(brr, 0, 128) - 1;
+    ByteBuffer mmap=io.map(FileChannel.MapMode.READ_ONLY, 0, io.size());
     int i=0;
-    while (i < len)
-     if (brr[i++] == (byte)0x1f && brr[i] == (byte)0x8b)break;
-    if (i > 0) {
-     io.getChannel().position(--i);
-     GZIPInputStream gz=new GZIPInputStream(io, Math.min(io.available(), 8182));
-     try {
-      int l;
-      int off=0;
-      int blen=brr.length;
-      int offlen=blen - 15;
-      //utf32-1
-      boolean isxml=false;
-      long xmlj;
-      for (;;) {
-       l = readLoop(gz, brr, off);
-       off = 15;
-       xmlj = findsMin(brr, xml_finds, l);
-       long mapj= findsMin(brr, map_finds, l);
-       if (isxml = (xmlj != -1 && mapj == -1 ||  ((int)mapj) > ((int)xmlj)))break;
-       else xmlj = mapj;
-       if (xmlj != -1)break;
-       if (l < blen)break;
-       //尾部结束没有必要复制
-       System.arraycopy(brr, offlen , brr, 0, off);
+    //考虑失败情况实际上用字节比更快，不过没必要优化，这是为了编译大小
+    //（ZipFile也有个类似的扫描）
+    short tag;
+    do{
+     tag = mmap.getShort(i++);
+    }while (tag != 0x1f8b);
+    mmap.position(--i);
+    mmap.limit(i + mmap.getInt(i - 4));
+    LibdeflateDecompressor def=new LibdeflateDecompressor(Libdeflate.GZIP);
+    try {
+     ByteBuffer buf=ByteBuffer.allocate(8192 + (4 * 3) + 3);
+     int l=0;
+     int k;
+     boolean isxml=false;
+     long xmlj=-1;
+     do {
+      k = buf.position();
+      buf = readLoop(def, mmap, buf);
+      l = buf.position();
+      xmlj = findsMin(buf, xml_finds, l);
+      long mapj= findsMin(buf, map_finds, l);
+      if (isxml = (xmlj != -1 && mapj == -1 ||  ((int)mapj) > ((int)xmlj)))break;
+      else xmlj = mapj;
+      if (xmlj != -1)
+       break;
+      if (l > 15) {
+       buf.position(l - 15);
+       buf.limit(l);
+       buf.compact();
+       buf.clear();
+       buf.position(15);
       }
-      if (xmlj != -1) {
-       int ki=(int)(xmlj >> 32);
-       Charset set = sets[ki];
-       int k = (int)xmlj,lastPos=0;
-       FileChannel ch=FileChannel.open(ou.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-       //这里是BufferedOutputStream对于输入超过缓冲的没有优化
-       //避免余剩字节导致的低于4k写出。
-       ByteBufIo out=new ByteBufIo(ch, 8192);
-       try {
-        if (isxml) {
-         out.write(set.encode("<?xml"));
-         k += xml_finds[ki].drc.length;
-         i = k;
-        } else i = k + map_finds[ki].drc.length;
-        int pos=out.buf.position();
-        ByteBuffer buf=ByteBuffer.wrap(brr);
-        for (;;) {
-         buf.limit(l);
-         buf.position(k);
-         out.write(buf);
-         BMFind[] finds=map_end;
-         int fk=-1;
-         for (int fi=0,size=finds.length;fi < size;++fi) {
-          int j = finds[fi].lastIndexOf(brr, i, l);
-          if (j > fk) {
-           fk = j;
-           set = sets[fi];
-          }
+     }while(l > k);
+     if (xmlj != -1) {
+      int ki=(int)(xmlj >> 32);
+      Charset set = sets[ki];
+      k = (int)xmlj;
+      int lastPos=0;
+      FileChannel ch=FileChannel.open(ou.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+      ByteBufIo out=new ByteBufIo(ch, RC.IOSIZE);
+      try {
+       if (isxml) {
+        out.write(set.encode("<?xml"));
+        k += xml_finds[ki].drc.length;
+        i = k;
+       } else i = k + map_finds[ki].drc.length;
+       int pos=out.buf.position();
+       do {
+        buf.limit(l);
+        buf.position(k);
+        out.write(buf);
+        BMFind[] finds=map_end;
+        int fk=-1;
+        for (int fi=0,flen=finds.length;fi < flen;++fi) {
+         int j = finds[fi].lastIndexOf(buf, i, l);
+         if (j > fk) {
+          fk = j;
+          set = sets[fi];
          }
-         i = 0;
-         if (fk != -1)lastPos = pos + fk - k;
-         pos += l - k;
-         k = off;
-         if (l < blen)break;
-         System.arraycopy(brr, offlen , brr, 0, off);
-         l = readLoop(gz, brr, off);
         }
-        int offpos=(int)(lastPos - ch.position());
-        WritableByteChannel f;
-        if (offpos < 0) {
-         ch.position(lastPos);
-         out.buf = null;
-         f = ch;
-        } else {
-         out.buf.position(offpos);
-         f = out;
+        i = 0;
+        if (fk != -1)lastPos = pos + fk - k;
+        pos += l - k;
+        if (l > 15) {
+         buf.position(l - 15);
+         buf.limit(l);
+         buf.compact();
+         buf.clear();
+         buf.position(15);
         }
-        f.write(set.encode(">"));
-       } finally {
-        out.close();
+        k = buf.position();
+        buf = readLoop(def, mmap, buf);
+        l = buf.position();
+       }while(l > k);
+       int offpos=(int)(lastPos - ch.position());
+       WritableByteChannel f;
+       if (offpos < 0) {
+        ch.position(lastPos);
+        out.buf = null;
+        f = ch;
+       } else {
+        out.buf.position(offpos);
+        f = out;
        }
+       f.write(set.encode(">"));
+      } finally {
+       out.close();
       }
-     } finally {
-      gz.close();
      }
+    } finally {
+     def.close();
     }
    } finally {
     io.close();

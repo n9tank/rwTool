@@ -32,6 +32,7 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import org.libDeflate.NioReader;
+import org.libDeflate.RC;
 import rust.UiHandler;
 import rust.loader;
 import rust.rwlib;
@@ -162,7 +163,7 @@ public class Main {
   userdir = dir;
   File cof=new File(dir, ".ini");
   try {
-   rwmodProtect.init(loader.load(new BufferedReader(new NioReader(FileChannel.open(cof.toPath(), StandardOpenOption.READ), 8192, StandardCharsets.UTF_8))));
+   rwmodProtect.init(loader.load(new BufferedReader(new NioReader(FileChannel.open(cof.toPath(), StandardOpenOption.READ), RC.IOSIZE, StandardCharsets.UTF_8))));
    readCof();
    if (uselib)lib();
    showUi();
