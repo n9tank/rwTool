@@ -20,33 +20,26 @@ import android.widget.ListView;
 import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import java.io.BufferedReader;
 import java.io.CharArrayWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.PrintWriter;
+import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.List;
-import rust.UiHandler;
-import rust.loaderManager;
-import rust.pngOpt;
-import rust.rwTool.Main;
-import rust.rwlib;
-import rust.rwmapOpt;
-import rust.rwmodProtect;
-import rust.savedump;
-import rust.zippack;
-import rust.zipunpack;
-import org.libDeflate.ParallelDeflate;
-import android.util.Log;
-import java.util.concurrent.ForkJoinPool;
 import java.util.HashMap;
+import java.util.List;
+import org.libDeflate.NioReader;
+import org.libDeflate.ParallelDeflate;
+import rust.UiHandler;
 import rust.loader;
-import java.io.FileReader;
-import java.io.BufferedReader;
+import rust.loaderManager;
+import rust.rwlib;
+import rust.rwmodProtect;
 public class Main extends Activity {
  boolean uselib;
  RadioGroup bu;
@@ -128,8 +121,10 @@ public class Main extends Activity {
    File su=getExternalFilesDir(null);
    HashMap io;
    File ini = new File(su, ".ini");
-   if (ini.exists())io = loader.load(new BufferedReader(new FileReader(ini), Math.min(8192, (int)ini.length())));
-   else io = loader.load(getResources().openRawResource(R.raw.def));
+   if (ini.exists())
+    io = loader.load(new BufferedReader(new NioReader(FileChannel.open(ini.toPath(), StandardOpenOption.READ), 8192, StandardCharsets.UTF_8)));
+   else 
+    io = loader.load(getResources().openRawResource(R.raw.def));
    rwmodProtect.init(io);
   } catch (Throwable e) {
    error(UiHandler.toList(e), "init");

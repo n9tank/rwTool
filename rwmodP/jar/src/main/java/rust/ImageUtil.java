@@ -1,17 +1,15 @@
 package rust;
+import java.awt.Graphics;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
+import java.io.ByteArrayInputStream;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import org.pngquant;
-import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import javax.imageio.stream.MemoryCacheImageInputStream;
-import java.io.IOException;
-import java.io.ByteArrayInputStream;
-import java.awt.image.DataBufferInt;
-import java.awt.Graphics;
-import java.util.HashSet;
-import java.util.BitSet;
+import org.pngquant;
 
 public class ImageUtil {
  public static byte[] tmxOpt(List<rwmapOpt.base64png> list, HashSet tree, HashMap<Integer,Integer> tiles, int w, int h, int j, int size) throws Exception {

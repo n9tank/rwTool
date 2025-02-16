@@ -32,6 +32,6 @@ namespace 'rust.rwTool'
 }
 
 dependencies {
-implementation fileTree("libs")
+implementation fileTree(dir: "libs", include: ["*.jar"])
 compileOnly fileTree(dir: "libawt", include: ["*.jar"])
 }

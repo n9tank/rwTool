@@ -9,10 +9,9 @@ import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import org.pngquant;
-import java.util.HashSet;
-import java.util.BitSet;
 
 public class ImageUtil {
  public static byte[] tmxOpt(List<rwmapOpt.base64png> list, HashSet tree, HashMap<Integer,Integer> tiles, int w, int h, int j, int size) {

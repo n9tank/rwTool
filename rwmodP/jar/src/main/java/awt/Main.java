@@ -12,8 +12,10 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.StandardOpenOption;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Scanner;
@@ -29,17 +31,11 @@ import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
+import org.libDeflate.NioReader;
 import rust.UiHandler;
 import rust.loader;
-import rust.loaderManager;
-import rust.pngOpt;
 import rust.rwlib;
-import rust.rwmapOpt;
 import rust.rwmodProtect;
-import rust.savedump;
-import rust.UiHandler;
-import rust.zipunpack;
-import rust.zippack;
 
 public class Main {
  public static DefaultListModel list;
@@ -109,7 +105,7 @@ public class Main {
          if (ems.nextElement().isSelected())break;
          id++;
         }
-        if (UiHandler.DefaultRunTask(f,id, 0, 1, raw.isSelected(), new File(userdir),StringUi))
+        if (UiHandler.DefaultRunTask(f, id, 0, 1, raw.isSelected(), new File(userdir), StringUi))
          Main.list.addElement(StringUi);
        }
       }
@@ -166,7 +162,7 @@ public class Main {
   userdir = dir;
   File cof=new File(dir, ".ini");
   try {
-   rwmodProtect.init(loader.load(new BufferedReader(new FileReader(cof), Math.min(8192, (int)cof.length()))));
+   rwmodProtect.init(loader.load(new BufferedReader(new NioReader(FileChannel.open(cof.toPath(), StandardOpenOption.READ), 8192, StandardCharsets.UTF_8))));
    readCof();
    if (uselib)lib();
    showUi();

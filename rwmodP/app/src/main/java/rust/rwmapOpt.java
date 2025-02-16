@@ -1,12 +1,13 @@
 package rust;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -18,13 +19,14 @@ import me.steinborn.libdeflate.Libdeflate;
 import me.steinborn.libdeflate.LibdeflateCompressor;
 import me.steinborn.libdeflate.LibdeflateDecompressor;
 import me.steinborn.libdeflate.LibdeflateJavaUtils;
+import org.libDeflate.BufWriter;
+import org.libDeflate.ByteBufIo;
+import org.libDeflate.RC;
 import org.libDeflate.UIPost;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import java.util.regex.Pattern;
-import org.libDeflate.RC;
 
 
 public class rwmapOpt implements Runnable {
@@ -579,7 +581,7 @@ public class rwmapOpt implements Runnable {
       data.getAttributes().getNamedItem("compression").setNodeValue("zlib");
       data.setTextContent(new String(Base64.getEncoder().encode(result).array()));
      }
-     BufferedWriter buff=new BufferedWriter(new FileWriter(ou));
+     BufferedWriter buff=new BufferedWriter(new BufWriter(new ByteBufIo(FileChannel.open(ou.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE), 8192), StandardCharsets.UTF_8));
      try {
       outxml(document, buff);
      } finally {

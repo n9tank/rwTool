@@ -1,9 +1,7 @@
 package rust.rwTool;
 
-import android.widget.TextView;
-import org.libDeflate.UIPost;
-import java.util.Vector;
 import java.util.List;
+import org.libDeflate.UIPost;
 
 public class StringUi implements UIPost,Runnable {
  String ti;
