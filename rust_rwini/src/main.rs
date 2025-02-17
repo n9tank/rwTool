@@ -1,7 +1,11 @@
 use std::env;
+use std::ptr::slice_from_raw_parts;
+use std::rc::Rc;
 use std::io::{self, Lines, BufRead, Write, BufWriter, BufReader, Error, ErrorKind};
 use std::path::PathBuf;
 use std::fs::File;
+use std::ptr;
+use std::sync::LazyLock;
 use fxhash::{FxBuildHasher, FxHashMap};
 use linked_hash_map::LinkedHashMap;
 pub type FxLinkedHashMap<K, V> = LinkedHashMap<K, V, FxBuildHasher>;
@@ -24,19 +28,40 @@ macro_rules! get_some_err {
         }
     };
 }
-fn read_cnf_file(
-    srcf: &PathBuf,
-) -> Result<FxLinkedHashMap<String, FxHashMap<String, String>>, Error> {
+pub struct Section(SECKV, Option<SECKV>);
+impl Section {
+    fn clone(&self) -> Section {
+        Section((&self.0).clone(), None)
+    }
+}
+pub type SECKV = FxHashMap<Rc<Box<str>>, Rc<Box<str>>>;
+pub type INIKV = FxLinkedHashMap<Rc<Box<str>>, Section>;
+pub fn put_INIKV(src: &mut INIKV, drc: &INIKV) {
+    let STR_COPYSKIP: Box<str> = "@copyFrom_skipThisSection".into();
+    for (k, v) in drc.iter() {
+        if matches!((v.0).get(&STR_COPYSKIP),
+        Some(x)if (***x).eq("1") || x.eq_ignore_ascii_case("true"))
+        {
+            let sec = src.get_mut(k);
+            if let Some(secv) = sec {
+                for (k0, v0) in v.0.iter() {
+                    secv.0.insert(k0.clone(), v0.clone());
+                }
+            } else {
+                src.insert(k.clone(), v.clone());
+            }
+        }
+    }
+}
+pub fn read_cnf_file(srcf: &PathBuf) -> Result<INIKV, Error> {
     let file = File::open(srcf)?;
     read_cnf(&mut BufReader::new(file).lines())
 }
-fn read_cnf<I: BufRead>(
-    lte: &mut Lines<I>,
-) -> Result<FxLinkedHashMap<String, FxHashMap<String, String>>, Error> {
-    let mut table: FxLinkedHashMap<String, FxHashMap<String, String>> = FxLinkedHashMap::default();
+pub fn read_cnf<I: BufRead>(lte: &mut Lines<I>) -> Result<INIKV, Error> {
+    let mut table: INIKV = FxLinkedHashMap::default();
     let mut strbuf: String = String::new();
-    let mut lastkey: Option<String> = None;
-    let mut last: Option<&mut FxHashMap<String, String>> = None;
+    let mut lastkey: Option<Box<str>> = None;
+    let mut last: Option<&mut SECKV> = None;
     'wh: while let Some(line) = lte.next() {
         let mut linev = line?;
         let mut var = linev.trim();
@@ -88,9 +113,13 @@ fn read_cnf<I: BufRead>(
                 last = None;
                 lastkey = None;
             } else {
-                let str = &var[1..i];
-                lastkey = Some(str.to_string());
-                last = table.get_mut(str);
+                let str = Box::from(&var[1..i]);
+                if let Some(v) = table.get_mut(&str) {
+                    last = Some(&mut v.0);
+                } else {
+                    last = None;
+                }
+                lastkey = Some(str);
             }
         } else if last.is_some() || lastkey.is_some() {
             let mut list = var.splitn(2, |c| c == ':' || c == '=');
@@ -98,11 +127,19 @@ fn read_cnf<I: BufRead>(
                 if let Some(value) = list.next() {
                     if last.is_none() {
                         if let Some(key) = lastkey.take() {
-                            last = Some(table.entry(key).or_insert(FxHashMap::default()));
+                            last = Some(
+                                &mut table
+                                    .entry(Rc::new(key))
+                                    .or_insert(Section(FxHashMap::default(), None))
+                                    .0,
+                            );
                         }
                     }
                     if let Some(ref mut map) = last {
-                        map.insert(key.trim().to_string(), value.trim().to_string());
+                        map.insert(
+                            Rc::new(Box::from(key.trim())),
+                            Rc::new(Box::from(value.trim())),
+                        );
                     }
                 }
             }
@@ -110,19 +147,14 @@ fn read_cnf<I: BufRead>(
     }
     Ok(table)
 }
-fn write_cnf_file(
-    drcf: &PathBuf,
-    map: &FxLinkedHashMap<String, FxHashMap<String, String>>,
-) -> Option<Error> {
+pub fn write_cnf_file(drcf: &PathBuf, map: &INIKV) -> Option<Error> {
     let f = get_some_err!(File::open(drcf));
     write_cnf_io(&mut BufWriter::new(f), map)
 }
-fn write_cnf_io<W: Write>(
-    buf: &mut BufWriter<W>,
-    map: &FxLinkedHashMap<String, FxHashMap<String, String>>,
-) -> Option<Error> {
+pub fn write_cnf_io<W: Write>(buf: &mut BufWriter<W>, map: &INIKV) -> Option<Error> {
     let mut ishead = false;
-    for (k, v) in map {
+    for (k, vs) in map {
+        let v = &vs.0;
         if v.len() == 0 {
             continue;
         }

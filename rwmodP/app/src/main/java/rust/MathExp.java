@@ -11,19 +11,24 @@ public class MathExp {
  }
  public double next() {
   while (nextChar('+'));
-  if (nextChar('-'))return -next();
+  if (nextChar('-'))
+   return -next();
   double d=0;
   if (nextChar('(')) {
    d = cmp();
    nextChar(')');
   } else {
    int i=in;
-   char c;
-   if (((c = t) >= '0' && c <= '9') || c == '.') {
-    while (((c = t) >= '0' && c <= '9') || c == '.')nextChar();
+   char c=t;
+   if ((c >= '0' && c <= '9') || c == '.') {
+    do{
+     nextChar();
+    }while (((c = t)  >= '0' && c <= '9') || c == '.');
     d = Double.parseDouble(m.subSequence(i, in).toString());
    } else {
-    while ((c = t) >= 'a' && c <= 'z')nextChar();
+    do{
+     nextChar();
+    }while ((c = t) >= 'a' && c <= 'z');
     d = next();
     c = m.charAt(i + 2);
     switch (c) {
@@ -42,23 +47,20 @@ public class MathExp {
     }
    }
   }
-  if (nextChar('^')) {
+  if (nextChar('^'))
    d = Math.pow(d, next());
-  }
   return d;
  }
  public void nextChar() {
   CharSequence str=m;
   int i=++in;
-  char c;
-  int len=str.length();
-  if (i >= len)c = ')';
-  else c = str.charAt(i);
-  t = c;
+  t = i >= str.length() ?str.charAt(i): ')';
  }
  public boolean nextChar(char c) {
-  while (t <= 32)nextChar();
-  if (t != c)return false;
+  while (t <= 32)
+   nextChar();
+  if (t != c)
+   return false;
   nextChar();
   return true;
  }
