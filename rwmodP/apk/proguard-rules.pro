@@ -1,1 +1,4 @@
 -dontpreverify
+-obfuscationdictionary hox.txt
+-classobfuscationdictionary hox.txt
+-packageobfuscationdictionary hox.txt
