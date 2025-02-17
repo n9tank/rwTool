@@ -6,6 +6,10 @@ aaptOptions.cruncherEnabled=false
 namespace 'rust.rwTool'
     compileSdkVersion 33
     buildToolsVersion "35.0.0"
+    compileOptions {
+	sourceCompatibility JavaVersion.VERSION_1_8
+	targetCompatibility JavaVersion.VERSION_1_8
+	}
     packagingOptions{
       jniLibs {
             useLegacyPackaging true
@@ -40,10 +44,6 @@ namespace 'rust.rwTool'
         debug {
         signingConfig signingConfigs.sign
         }
-        compileOptions {
-			sourceCompatibility=JavaVersion.VERSION_1_8
-			targetCompatibility=JavaVersion.VERSION_1_8
-			}
     }
     sourceSets {
         main {
@@ -54,6 +54,7 @@ namespace 'rust.rwTool'
 }
 
 dependencies {
+//coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.0'
 implementation fileTree("../app/libs")
 //implementation fileTree(dir: "libs", include: ["*.jar"])
 }

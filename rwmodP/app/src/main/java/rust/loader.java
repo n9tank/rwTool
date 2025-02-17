@@ -39,11 +39,6 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
   }
   return 0;
  }
- public static int utf8len(CharSequence str) {
-  int len=str.length() ;
-  return len + (len >> 1);
-  //1.5倍容量，最大3倍
- }
  public static HashSet boolset;
  public static boolean isBool(String key) {
   if (boolset.contains(key))return true;
@@ -68,23 +63,21 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
   return value;
  }
  public void with(ParallelDeflate para, String str) throws Exception {
-  boolean st=false;
-  int all=0;
+  int cbytes=0;
+  int len=0;
   for (Map.Entry<String, section> ses:(Set<Map.Entry<String,section>>)ini.entrySet()) {
    HashMap v= ses.getValue().m;
-   if (v.size() > 0) {
-    if (st)all++;
-    st = true;
-    all += utf8len(ses.getKey());
-    all += 2;
+   int size=v.size();
+   if (size > 0) {
+    len += ses.getKey().length();
+    cbytes += (size << 1) + 3;
     for (Map.Entry<String,String> en:(Set<Map.Entry>)v.entrySet()) {
-     all += 2;
-     all += utf8len(en.getKey());
-     all += utf8len(en.getValue());
+     len += en.getKey().length();
+     len += en.getValue().length();
     }
    }
   }
-  bufSize = all;
+  bufSize = cbytes > 0 ?len + (len >> 1) + cbytes - 1: 0;
   para.with(this, ZipUtil.newEntry(str, 12), false);
  }
  public void flush() throws Exception {
@@ -107,7 +100,7 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
      }
     }
    }
-   buf.flush();
+   //buf.flush();
   } finally {
    buf.close();
   }

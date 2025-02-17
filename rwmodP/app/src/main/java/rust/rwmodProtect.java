@@ -1,6 +1,5 @@
 package rust;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -18,7 +17,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.libDeflate.ErrorHandler;
-import org.libDeflate.NioReader;
 import org.libDeflate.ParallelDeflate;
 import org.libDeflate.UIPost;
 import org.libDeflate.ZipEntryM;
@@ -40,12 +38,13 @@ public class rwmodProtect extends loaderManager implements Consumer {
  int arr[];
  AtomicInteger safeInt[];
  String musicPath;
- int musicPut=-1; 
+ int oggindex=-1; 
  String oggput; 
  boolean raw;
  static int BGMShortCharCounts;
- static int maxSplit;
- static int splitMod; 
+ static int splitcous;
+ static int splitdeep;
+ static int splitpow; 
  static char[] cr;
  static HashMap<String,Integer> Res;
  public rwmodProtect(File in, File ou, UIPost ui, boolean rw) {
@@ -81,10 +80,8 @@ public class rwmodProtect extends loaderManager implements Consumer {
   loader.boolset = toSet(set.get("bool"));
   zippack.zip64enmode = set.get("end").length() > 0;
   char irr[]=set.get("split").toCharArray();
-  if (irr.length > 0) {
-   maxSplit = irr[0] - '/';
-   splitMod = (int)Math.pow(maxSplit, irr[1] - '/');  
-  }
+  if (irr.length > 0)
+   splitpow = (int)Math.pow(splitcous = irr[0] - '/', splitdeep = irr[1] - '/');  
   BGMShortCharCounts = Integer.parseInt(set.get("BGMS"));
   cr = set.get("chars").toCharArray();
   HashMap res=new HashMap();
@@ -123,17 +120,19 @@ public class rwmodProtect extends loaderManager implements Consumer {
   }
  }
  void appendName(int i, boolean checkOgg, StringBuilder buff) {
-  int max=splitMod;
-  if (max > 0) {
-   int u=maxSplit;   
-   int music=musicPut;   
-   if (checkOgg && music >= 0 && (i - (i % u)) == music)i += u;
+  int u=splitcous;   
+  if (u > 0) {
+   int max=splitpow;
+   int music=oggindex;
+   if (checkOgg && music >= 0 && i >= music)
+    i += u;
    int end=i % max;
    append(i /= max, buff);
-   while ((max /= u) > 0) {
+   int cou=splitdeep;
+   while (--cou >= 0) {
     buff.append('/');
     append(end % u, buff);
-    end /= u;    
+    end /= u;
    }
   } else append(i, buff);
  }
@@ -156,7 +155,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
    int i=arr[ini -= 4]++;
    if (ini > 0) {
     buff.append(oggput);
-    buff.append('/');  
+    buff.append('/');
     if (ini > 1)buff.append("[noloop]");
    }
    if (ini == 0) {
@@ -173,7 +172,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
  public void appstr(String str, loader put, StringBuilder buff) {
   String add=put.str; 
   if (put.task == null)buff.append("CORE:");
-  else if (maxSplit > 0)
+  else if (splitcous > 0)
    buff.append("ROOT:");
   buff.append(add);
   buff.append(',');
@@ -192,7 +191,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
  public boolean asyncAdd(loader lod) throws IOException {
   boolean ok=!lod.type;
   if (ok || lod.inSet())return ok;
-  new iniTask(this, lod, uih);
+  new iniTask(this, lod);
   return ok;
  }
  public HashMap[] merge(loaders key) {
@@ -350,7 +349,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
   else if (type > 0)c = ':';
   if (c != 0)i = add.lastIndexOf(c);
   if (i <= 0)i = add.length();
-  if (maxSplit > 0)buff.append("ROOT:");
+  if (splitcous > 0)buff.append("ROOT:");
   String str = add.substring(0, i);
   zipEntry ze = toPath(str);
   if (ze != null) {
@@ -516,14 +515,18 @@ public class rwmodProtect extends loaderManager implements Consumer {
     if (cp != null) {
      HashMap map=cp.m;
      String str =(String)map.get("sourceFolder");
-     if (str != null) {
+     if (str != null && str.length() > 0) {
       str = str.replace('\\', '/');
-      if (str.length() > 0 && !str.endsWith("/"))str = str.concat("/");
+      if (!str.endsWith("/"))
+       str = str.concat("/");
       musicPath = str;
-      int max=maxSplit;
-      appendName(musicPut = new Random().nextInt(BGMShortCharCounts * Math.max(1, max) + 1), false, mbuff);
-      if (max > 0)mbuff.setLength(mbuff.length() - 2);    
-      map.put("sourceFolder", oggput = mbuff.toString());
+      int max=splitcous;
+      int oggput=new Random().nextInt(BGMShortCharCounts * Math.max(1, max) + 1);
+      oggindex = oggput;
+      appendName(oggput, false, mbuff); 
+      if (max > 0)
+       mbuff.setLength(mbuff.length() - 2);
+      map.put("sourceFolder", this.oggput = mbuff.toString());
      }
     }
     ini.ini = info;

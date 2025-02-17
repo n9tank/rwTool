@@ -27,12 +27,7 @@ public class zippack implements Runnable,UIPost {
  public static void writeOrCopy(ParallelDeflate para, zipFile zipf, zipEntry en, ZipEntryM zip, boolean raw) throws Throwable {
   para.writeToZip(new ZipInputGet(zipf, en), zip, raw);
  }
- public static ZipEntryOutput zip(File ou) throws Exception {
-  ZipEntryOutput out= new ZipEntryOutput(ou);
-  out.flag = out.openJdk8opt;
-  return out;
- }
- static boolean zip64enmode;
+ public static boolean zip64enmode;
  public static ZipEntryOutput enZip(File ou) throws Exception {
   ZipEntryOutput out=new ZipEntryOutput(ou);
   int flag= out.openJdk8opt | out.enmode;
