@@ -28,8 +28,7 @@ public class zipunpack implements Runnable {
  }
  public static int toName(ByteBuffer name) {
   int i=name.limit();
-  if (i == 0)return 0;
-  while (name.get(--i) == '/');
+  while (--i >= 0 && name.get(i) == '/');
   return ++i;
  }
  public static ByteBuffer appendChar(ByteBuffer buf, byte c) {

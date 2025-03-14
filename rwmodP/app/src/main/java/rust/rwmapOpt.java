@@ -28,6 +28,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.xml.sax.*;
 
 
 public class rwmapOpt implements Runnable {
@@ -239,6 +240,12 @@ public class rwmapOpt implements Runnable {
   Throwable ex=null;
   try {
    DocumentBuilder docBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+   /*防止XXE没有任何意义
+   docBuilder.setEntityResolver(new EntityResolver(){
+	 public InputSource resolveEntity(String publicId, String systemId) throws IOException{
+	  throw new IOException();
+	 }
+	});*/
    Document document = docBuilder.parse(in);
    HashMap tiles = new HashMap();
    HashSet treeTile=new HashSet();

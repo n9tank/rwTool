@@ -31,11 +31,14 @@ namespace 'rust.rwTool'
         minSdkVersion 26
         //noinspection ExpiredTargetSdkVersion
         targetSdkVersion 29
-        versionCode 250211
+        versionCode 250321
         versionName "0.9.7"
     }
     buildTypes {
         release {
+        afterEvaluate { 
+        project.tasks.findByName('extractReleaseVersionControlInfo')?.enabled = false
+        }
         signingConfig signingConfigs.sign
         shrinkResources true
         minifyEnabled true
@@ -49,7 +52,8 @@ namespace 'rust.rwTool'
         main {
         java{
             srcDirs += "../app/src/main/java"
-        }}
+        }
+        }
     }
 }
 
