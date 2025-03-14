@@ -439,7 +439,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
  public void end() {
   switch (endtype++) {
    case 0:
-    final List<Object> iniList = Arrays.asList(Zipmap.values().toArray());
+    final List iniList = Arrays.asList(Zipmap.values().toArray());
     try {
      //不用java默认的ForkJoinPool.commonPool()
      ParallelDeflate.pool.execute(new Runnable(){
