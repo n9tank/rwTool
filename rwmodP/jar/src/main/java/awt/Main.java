@@ -37,6 +37,8 @@ import rust.UiHandler;
 import rust.loader;
 import rust.rwlib;
 import rust.rwmodProtect;
+import java.io.*;
+import javax.swing.*;
 
 public class Main {
  public static DefaultListModel list;
@@ -127,7 +129,7 @@ public class Main {
     obj.close();
    }
   } catch (Exception e) {
-   error(UiHandler.toList(e));
+   //忽略
   }
  }
  public static void readCof() throws IOException {
@@ -150,12 +152,15 @@ public class Main {
    rwlib.init();
   }
  }
- public static void error(List<Throwable> err) {
+ public static void error(String title, List<Throwable> err) {
   if (list != null && list.size() > 0) {
    //to do
+   CharArrayWriter arr=new CharArrayWriter();
+   PrintWriter print=new PrintWriter(arr);
    for (Throwable e:err) {
-    e.printStackTrace();
+    e.printStackTrace(print);
    }
+   JOptionPane.showMessageDialog(null, title, arr.toString(), JOptionPane.PLAIN_MESSAGE);
   }
  }
  public static void main(String arg[]) {
@@ -168,12 +173,13 @@ public class Main {
    if (uselib)lib();
    showUi();
   } catch (Exception e) {
-   error(UiHandler.toList(e));
+   error("init", UiHandler.toList(e));
   }
-  Scanner in=new Scanner(System.in);
-  while (true) {
+  /*
+   Scanner in=new Scanner(System.in);
+   while (true) {
    if (in.nextLine().equals("exit"))
-    System.exit(0);
-  }
+   System.exit(0);
+   }*/
  }
 }

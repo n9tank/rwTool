@@ -17,7 +17,7 @@ public class StringUi implements UIPost,Runnable {
   return ti;
  }
  public void run() {
-  Main.error(err);
+  Main.error(ti, err);
   Main.list.removeElement(this);
  }
 }
