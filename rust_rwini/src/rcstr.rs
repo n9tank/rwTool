@@ -26,7 +26,6 @@ impl Borrow<str> for Rcstr {
 pub struct Strslice<T: Deref<Target = str>> {
     src: T,
     slice: *const str,
-    _marker: PhantomData<*const str>,
 }
 impl<T: Deref<Target = str>> Strslice<T> {
     pub fn new(src: T, start: usize) -> Self {
@@ -34,7 +33,6 @@ impl<T: Deref<Target = str>> Strslice<T> {
         Self {
             src,
             slice: slice_ptr,
-            _marker: PhantomData,
         }
     }
     pub fn new_range(src: T, start: usize, end: usize) -> Self {
@@ -42,7 +40,6 @@ impl<T: Deref<Target = str>> Strslice<T> {
         Self {
             src,
             slice: slice_ptr,
-            _marker: PhantomData,
         }
     }
 }

@@ -9,15 +9,15 @@ public class savedump implements Runnable {
  File ou;
  UIPost ui;
  public static String readIsString(DataInput input) throws IOException{
-  return input.readBoolean()?input.readUTF():null;
+  return input.readBoolean() ?input.readUTF(): null;
  } 
- public static void saveDump(File in,File ou) throws Exception{
+ public static void saveDump(File in, File ou) throws Exception{
   BufferedInputStream input= new BufferedInputStream(new FileInputStream(in));
   DataInputStream data=new DataInputStream(input);
   try{
    String str=data.readUTF();
-   if(!"rustedWarfareSave".equals(str)){
-	if(!"rustedWarfareReplay".equals(str)){
+   if (!"rustedWarfareSave".equals(str)){
+	if (!"rustedWarfareReplay".equals(str)){
 	 throw new DataFormatException();
 	}
 	//rustedWarfareReplay
@@ -37,29 +37,33 @@ public class savedump implements Runnable {
    data.readUTF();
    //saveCompression
    int gzipsize=data.readInt();
-   DataInputStream datagzip=new DataInputStream(new BufferedInputStream(new GZIPInputStream(input,1024)));
+   DataInputStream datagzip=new DataInputStream(new BufferedInputStream(new GZIPInputStream(input, 1024)));
    try{
 	datagzip.readUTF();
 	//customUnitsBlock
 	int customUnitsBlocklen=datagzip.readInt();
-	datagzip.readUTF();
-	//customUnits
-	datagzip.readInt();
-	int modunitlen= datagzip.readInt();
-	for(int i=0;i<modunitlen;i++){
+	datagzip.skip(customUnitsBlocklen);
+	/*
+	 datagzip.readUTF();
+	 //customUnits
+	 datagzip.readInt();
+	 int modunitlen= datagzip.readInt();
+	 for(int i=0;i<modunitlen;i++){
 	 datagzip.readUTF();
 	 datagzip.readInt();
 	 datagzip.readBoolean();
 	 readIsString(datagzip);
 	 datagzip.readLong();
 	 datagzip.readLong();
-	}
+	 }*/
 	datagzip.readUTF();
 	int gameSetuplen=datagzip.readInt();
+	datagzip.skip(gameSetuplen);
 	//gameSetup
-	boolean isStarting= datagzip.readBoolean();
-	boolean isHaveAi= datagzip.readBoolean();
-	if(data.readBoolean()){
+	/*
+	 boolean isStarting= datagzip.readBoolean();
+	 boolean isHaveAi= datagzip.readBoolean();
+	 if(data.readBoolean()){
 	 datagzip.readByte();
 	 datagzip.readByte();
 	 int fog=datagzip.readInt();
@@ -78,9 +82,9 @@ public class savedump implements Runnable {
 	 int randomSeed=datagzip.readInt();
 	 datagzip.readInt();
 	 datagzip.readInt();
-	}
+	 }*/
 	String map=datagzip.readUTF();
-	if(datagzip.readBoolean()){
+	if (datagzip.readBoolean()){
 	 int mapDataSize=datagzip.readInt();
 	 FileOutputStream out=new FileOutputStream(ou);
 	 try{
@@ -106,7 +110,7 @@ public class savedump implements Runnable {
  public void run() {
   Throwable ex=null;
   try {
-   saveDump(in,ou);
+   saveDump(in, ou);
   } catch (Throwable e) {
    ex = e;
   }

@@ -17,14 +17,14 @@ public class ImageUtil {
  public static byte[] tmxOpt(List<rwmapOpt.base64png> list, HashSet tree, HashMap<Integer,Integer> tiles, int w, int h, int j, int size) {
   int v=0;
   Bitmap bit=Bitmap.createBitmap(w, h * size, Bitmap.Config.ARGB_8888);
+  Canvas cv= new Canvas(bit);
+  Paint pt= new Paint();
+  pt.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC));
   for (rwmapOpt.base64png png:list) {
    if (png == null)continue;
    byte imgarr[] = Base64.getDecoder().decode(iniobj.trims(png.img.getTextContent()));
    Bitmap bmp=BitmapFactory.decodeByteArray(imgarr, 0, imgarr.length);
    int pw=bmp.getWidth() / w;
-   Canvas cv= new Canvas(bit);
-   Paint pt= new Paint();
-   pt.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC));
    int first=png.start;
    for (int c=0,len=png.len;c < len;++c) {
     Integer key=c + first;     
