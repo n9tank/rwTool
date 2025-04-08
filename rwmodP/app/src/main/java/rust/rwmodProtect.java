@@ -1,35 +1,13 @@
 package rust;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
-import org.libDeflate.ErrorHandler;
-import org.libDeflate.ParallelDeflate;
-import org.libDeflate.UIPost;
-import org.libDeflate.ZipEntryM;
-import org.libDeflate.ZipEntryOutput;
-import org.libDeflate.ZipInputGet;
-import org.libDeflate.ZipUtil;
-import org.libDeflate.zipEntry;
-import org.libDeflate.zipFile;
-import rust.iniobj;
-import rust.loader;
-import rust.loaders;
-import rust.rwmapOpt;
-import rust.zippack;
+import java.io.*;
+import java.nio.charset.*;
+import java.nio.file.*;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.util.function.*;
+import org.libDeflate.*;
 public class rwmodProtect extends loaderManager implements Consumer {
  HashMap lowmap;
  ConcurrentHashMap resmap;
@@ -49,7 +27,15 @@ public class rwmodProtect extends loaderManager implements Consumer {
  static HashMap<String,Integer> Res;
  public rwmodProtect(File in, File ou, UIPost ui, boolean rw) {
   super(in, ou, ui);
-  raw = rw;  
+  raw = rw;
+  oldobj = new HashMap();
+  resmap = new ConcurrentHashMap();
+  arr = new int[3];
+  AtomicInteger ato[]=new AtomicInteger[3];
+  safeInt = ato;
+  for (int i=0;i < ato.length;++i)
+   ato[i] = new AtomicInteger();
+  lowmap = new HashMap();
  }
  public loader getLoder(String str) throws Throwable {
   zipEntry za=toPath(str);
@@ -181,21 +167,15 @@ public class rwmodProtect extends loaderManager implements Consumer {
   loader all=copy[0];
   if (copy != null) {
    for (int i=1,len=copy.length;i < len;++i) {
-    loader key[]=copy[i].copy.copy;
+    loader key[]=copy[i].copy.list;
     if (key[0] == all || with(key))
      return true;
    }
   }
   return false;
  }
- public boolean asyncAdd(loader lod) throws IOException {
-  boolean ok=!lod.type;
-  if (ok || lod.inSet())return ok;
-  new iniTask(this, lod);
-  return ok;
- }
  public HashMap[] merge(loaders key) throws IOException {
-  loader[] list=key.copy;
+  loader[] list=key.list;
   int len=list.length;
   HashMap copy[]=new HashMap[len];
   Comparables cms=new Comparables();
@@ -225,10 +205,10 @@ public class rwmodProtect extends loaderManager implements Consumer {
  boolean write(loader ini) throws Throwable {
   loaders copy=ini.copy;
   boolean ru=true;
-  loader[] orr=copy.copy;
+  loader[] orr=copy.list;
   for (loader lod:orr) {
    if (lod != null)
-    ru &= asyncAdd(lod);
+    ru &= !lod.type;
   }
   if (!ru)return false;
   HashMap[] maps=merge(copy);
@@ -430,12 +410,32 @@ public class rwmodProtect extends loaderManager implements Consumer {
   lod.put.as();
  }
  //用于决定加载循序，减少空检查导致的线程切换性能
- public void addAll(loader lod) throws IOException{
-  for (loader ini:lod.copy.copy){
-   if (ini != null)
-	addAll(ini);
+ public static void addAll(Collection<loader> list){
+  for (loader lod:list)
+   addAll(lod, 0);
+ }
+ public static void addAll(loader lod, int cou){
+  int lvl=lod.lvl;
+  if (cou > lvl){
+   int n=cou + 1;
+   for (loader ini:lod.copy.list){
+	if (ini != null)
+	 addAll(ini, n);
+   }
+   lod.lvl = cou;
   }
-  asyncAdd(lod);
+ }
+ public static void set(Collection<loader> list, ArrayList qlist[]){
+  for (loader lod:list){
+   int lvl=lod.lvl;
+   if (lvl >= 0){
+	ArrayList mlist=qlist[lvl];
+	if (mlist == null)
+	 qlist[lvl] = mlist = new ArrayList();
+	mlist.add(lod);
+	lod.lvl = -1;
+   }
+  }
  }
  public int endtype;
  public void end() {
@@ -453,18 +453,32 @@ public class rwmodProtect extends loaderManager implements Consumer {
 		loader lod=(loader)obj;
 		lod.str = safeName(lod.isini ?4: 1, bf);
 		loaders lods=lod.copy;
-		if (lods.ge1())
-		 oldobj.putIfAbsent(lods.toKey(), lod);
+		loader copy[]=lods.list;
+		int off=(copy[0] == null ?1: 0);
+		int len=copy.length;
+		if (len - off > 1){
+		 Comparables ckey=new Comparables();
+		 ckey.set(copy, off, len);
+		 oldobj.putIfAbsent(ckey, lod);
+		}		 
 	   }
-	   ErrorHandler err = new ErrorHandler(UiHandler.ui_pool, rwmod);
+	   ErrorHandler err = new ErrorHandler(UiHandler.ui_pool, rwmod, errlist);
 	   err.ui = back;
 	   uih = err;
-	   try {
-		//决定加载循序
-		for (Object obj:oldobj.values())
-		 addAll((loader)obj);
-		for (Object obj:iniList)
-		 addAll((loader)obj);
+	   try { 
+		Collection list=oldobj.values();
+		addAll(list);
+		addAll(iniList);
+		ArrayList qlist[]=new ArrayList[10];
+		set(list, qlist);
+		set(iniList, qlist);
+		for (int i=10;--i >= 0;){
+		 ArrayList mlist=qlist[i];
+		 if (mlist != null){
+		  for (loader lod:(ArrayList<loader>)mlist)
+		   new iniTask(rwmod, lod);
+		 }
+		}
 	   } catch (Exception e) {
 	   }
 	   err.pop();
@@ -482,22 +496,13 @@ public class rwmodProtect extends loaderManager implements Consumer {
   }
  }
  public Object call() {
-  oldobj = new HashMap();
-  resmap = new ConcurrentHashMap();
-  arr = new int[3];
-  AtomicInteger ato[]=new AtomicInteger[3];
-  safeInt = ato;
-  for (int i=0;i < ato.length;++i)
-   ato[i] = new AtomicInteger();
-  HashMap lows=new HashMap();
-  lowmap = lows;
   StringBuilder mbuff = new StringBuilder();
   try {
    zipFile zip=new zipFile(In);
    Zip = zip;
    out = zippack.enZip(Ou);
    final ParallelDeflate cr = new ParallelDeflate(out);
-   ErrorHandler err=new ErrorHandler(cr.pool, this);
+   ErrorHandler err=new ErrorHandler(cr.pool, this, errlist);
    err.ui = back;
    cr.on = err;
    cre = cr;
@@ -510,7 +515,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
      name = root;
     String icase=fileName.toLowerCase();
     if (icase != fileName)
-     lows.putIfAbsent(icase, zipEntry);
+     lowmap.putIfAbsent(icase, zipEntry);
    }
    rootPath = name;
    zipEntry inf=toPath(name.concat("mod-info.txt"));
