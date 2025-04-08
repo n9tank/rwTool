@@ -22,6 +22,15 @@ public class loaders implements Comparable {
  }
  public loader copy[];
  public int hashCode;
+ public boolean ge1(){
+  return copy.length - (copy[0] == null ?1: 0) > 1;
+ }
+ public Comparables toKey(){
+  Comparables ckey=new Comparables();
+  loader[] orr=copy;
+  ckey.set(orr, orr[0] == null ?1: 0, orr.length);
+  return ckey;
+ }
  public loaders(loader copy[]) {
   this.hashCode = Arrays.hashCode(copy);
   this.copy = copy;

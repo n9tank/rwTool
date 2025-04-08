@@ -288,6 +288,7 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
   }
   return in;
  }
+ volatile HashMap old;
  volatile boolean type;
  boolean isini;
  HashMap ini;

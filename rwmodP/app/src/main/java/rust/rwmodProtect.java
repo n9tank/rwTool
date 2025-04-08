@@ -34,7 +34,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
  HashMap lowmap;
  ConcurrentHashMap resmap;
  ZipEntryOutput out;
- ConcurrentHashMap oldobj;
+ HashMap oldobj;
  int arr[];
  AtomicInteger safeInt[];
  String musicPath;
@@ -194,7 +194,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
   new iniTask(this, lod);
   return ok;
  }
- public HashMap[] merge(loaders key) {
+ public HashMap[] merge(loaders key) throws IOException {
   loader[] list=key.copy;
   int len=list.length;
   HashMap copy[]=new HashMap[len];
@@ -205,12 +205,14 @@ public class rwmodProtect extends loaderManager implements Consumer {
    int v=len;
    int n;
    for (;(n = (v - 1)) > i;v = n) {
-    cms.set(list, list[i] == null ?i + 1: i, v);
-    Object obj= oldobj.get(cms);
+    cms.set(list, list[i] == null ?1: i, v);
+    loader obj=(loader) oldobj.get(cms);
     if (obj != null) {
-     if (obj instanceof loader)return null;
+	 HashMap map=obj.old;
+     if (map == null)
+	  return null;
      i = v;
-     copy[c++] = (HashMap)obj;
+     copy[c++] = map;
      continue wh;
     }
    }
@@ -234,22 +236,14 @@ public class rwmodProtect extends loaderManager implements Consumer {
   HashMap oldsrc=null;
   int len=maps.length;
   if (len > 1 && maps[1] != null) {
-   Comparables ckey=new Comparables();
-   ckey.set(orr, orr[0] == null ?1: 0, orr.length);
-   Object obj=oldobj.putIfAbsent(ckey, ini);
-   if (obj != null) {
-    if (obj instanceof loader)return false;
-    oldsrc = (HashMap)obj;
-   } else {
-    oldsrc = new HashMap();
-    for (;--len >= 0;) {
-     HashMap lod=maps[len];
-     if (lod != null)
-      iniobj.put(oldsrc, lod);
-    }
-    oldobj.put(ckey, oldsrc);
+   oldsrc = new HashMap();
+   for (;--len >= 0;) {
+	HashMap lod=maps[len];
+	if (lod != null)
+	 iniobj.put(oldsrc, lod);
    }
   } else oldsrc = maps[0];
+  ini.old = oldsrc;
   StringBuilder buff=new StringBuilder();
   StringBuilder bf=new StringBuilder();
   String file=loader.getSuperPath(ini.src);
@@ -413,7 +407,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
  int getType(String file) {
   int i=file.length() - 4;
   int ed=i;
-  if (file.endsWith("/"))--ed;
+  //if (file.endsWith("/"))--ed;
   if (file.regionMatches(true, ed, ".ini", 0, 4)) {
    return 4;
   } else if (file.regionMatches(true, ed, ".tmx", 0, 4) || file.regionMatches(true, ed - 4, "_map.png", 0, 8))
@@ -435,35 +429,47 @@ public class rwmodProtect extends loaderManager implements Consumer {
   loader lod=(loader)obj;
   lod.put.as();
  }
+ //用于决定加载循序，减少空检查导致的线程切换性能
+ public void addAll(loader lod) throws IOException{
+  for (loader ini:lod.copy.copy){
+   if (ini != null)
+	addAll(ini);
+  }
+  asyncAdd(lod);
+ }
  public int endtype;
  public void end() {
   switch (endtype++) {
    case 0:
-    final List iniList = Arrays.asList(Zipmap.values().toArray());
-    try {
-     //不用java默认的ForkJoinPool.commonPool()
-     ParallelDeflate.pool.execute(new Runnable(){
-       public void run() {
-        rwmodProtect rwmod= rwmodProtect.this;
-        iniList.parallelStream().forEach(rwmod);
-        Collections.shuffle(iniList);
-        StringBuilder bf=new StringBuilder();
-        for (Object obj:iniList) {
-         loader lod=(loader)obj;
-         lod.str = safeName(lod.isini ?4: 1, bf);
-        }
-        ErrorHandler err = new ErrorHandler(UiHandler.ui_pool, rwmod);
-        err.ui = back;
-        uih = err;
-        try {
-         for (Object obj:iniList)
-          asyncAdd((loader)obj);
-        } catch (Exception e) {
-        }
-        err.pop();
-       }
-      });
-    } catch (Exception e) {}
+	//不用java默认的ForkJoinPool.commonPool()
+	ParallelDeflate.pool.execute(new Runnable(){
+	  public void run() {
+	   List iniList = Arrays.asList(Zipmap.values().toArray());
+	   rwmodProtect rwmod= rwmodProtect.this;
+	   iniList.parallelStream().forEach(rwmod);
+	   Collections.shuffle(iniList);//用于提升随机性
+	   StringBuilder bf=new StringBuilder();
+	   for (Object obj:iniList) {
+		loader lod=(loader)obj;
+		lod.str = safeName(lod.isini ?4: 1, bf);
+		loaders lods=lod.copy;
+		if (lods.ge1())
+		 oldobj.putIfAbsent(lods.toKey(), lod);
+	   }
+	   ErrorHandler err = new ErrorHandler(UiHandler.ui_pool, rwmod);
+	   err.ui = back;
+	   uih = err;
+	   try {
+		//决定加载循序
+		for (Object obj:oldobj.values())
+		 addAll((loader)obj);
+		for (Object obj:iniList)
+		 addAll((loader)obj);
+	   } catch (Exception e) {
+	   }
+	   err.pop();
+	  }
+	 });
     break;
    case 1:
     uih = null;
@@ -476,7 +482,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
   }
  }
  public Object call() {
-  oldobj = new ConcurrentHashMap();
+  oldobj = new HashMap();
   resmap = new ConcurrentHashMap();
   arr = new int[3];
   AtomicInteger ato[]=new AtomicInteger[3];
@@ -536,8 +542,9 @@ public class rwmodProtect extends loaderManager implements Consumer {
    for (zipEntry zipEntry:zip.ens.values()) {
     name = zipEntry.name;
 	int type=getType(name);
-	if (type == 4) {
-	 addLoder(zipEntry, name, name, null, true);
+	boolean istem=name.regionMatches(true, name.length() - 18, "all-units.template", 0, 18);
+	if (type == 4 || istem) {
+	 addLoder(zipEntry, name, name, null, !istem);
 	} else if (type == 0) {
      zippack.writeOrCopy(cre, zip, zipEntry, ZipUtil.newEntry(loader.getName(name).concat("/"), 12), raw);
 	} else if (type >= 5) {
