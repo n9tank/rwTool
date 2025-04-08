@@ -5,8 +5,8 @@ import rust.loaders;
 public class loaders implements Comparable {
  public int compareTo(Object o) {
   loaders obj=(loaders)o;
-  loader orr[]=copy;
-  loader irr[]=obj.copy;
+  loader orr[]=list;
+  loader irr[]=obj.list;
   int len=orr.length;
   int i = len - irr.length;
   if (i != 0)return i;
@@ -20,20 +20,11 @@ public class loaders implements Comparable {
   }
   return 0;
  }
- public loader copy[];
+ public loader list[];
  public int hashCode;
- public boolean ge1(){
-  return copy.length - (copy[0] == null ?1: 0) > 1;
- }
- public Comparables toKey(){
-  Comparables ckey=new Comparables();
-  loader[] orr=copy;
-  ckey.set(orr, orr[0] == null ?1: 0, orr.length);
-  return ckey;
- }
  public loaders(loader copy[]) {
   this.hashCode = Arrays.hashCode(copy);
-  this.copy = copy;
+  this.list = copy;
  }
  public int hashCode() {
   return hashCode;

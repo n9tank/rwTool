@@ -88,9 +88,15 @@ public class savedump implements Runnable {
 	 int mapDataSize=datagzip.readInt();
 	 FileOutputStream out=new FileOutputStream(ou);
 	 try{
-	  byte mapData[]=new byte[mapDataSize];
-	  datagzip.read(mapData);
-	  out.write(mapData);
+	  int len=Math.min(65536, mapDataSize);
+	  byte mapData[]=new byte[len];
+	  while (true){
+	   datagzip.read(mapData, 0, len);
+	   out.write(mapData, 0, len);
+	   if ((mapDataSize -= len) <= 0)
+		break;
+	   len = Math.min(65536, mapDataSize);
+	  }
 	 }finally{
 	  out.close();
 	 }

@@ -82,7 +82,7 @@ public class rwlib extends loaderManager implements UIPost {
    if (ou != null) {
     ZipEntryOutput out = new ZipEntryOutput(ou);
     ParallelDeflate cre = new ParallelDeflate(out);
-    ErrorHandler err= new ErrorHandler(cre.pool, cre);
+    ErrorHandler err= new ErrorHandler(cre.pool, cre, errlist);
     err.ui = this;
     cre.on = err;
     this.cre = cre;

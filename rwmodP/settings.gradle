@@ -33,5 +33,5 @@ rootProject.name = "My Application"
 
 include(":apk")
 include(":lib")
-//include(":jar")
+include(":jar")
 

@@ -11,6 +11,7 @@ import org.libDeflate.ZipInputGet;
 import org.libDeflate.ZipUtil;
 import org.libDeflate.zipEntry;
 import org.libDeflate.zipFile;
+import java.util.*;
 
 public class zippack implements Runnable,UIPost {
  File in;
@@ -49,7 +50,7 @@ public class zippack implements Runnable,UIPost {
    this.Zip = zip;
    try {
     ParallelDeflate cr=new ParallelDeflate(enZip(ou));
-    ErrorHandler err = new ErrorHandler(cr.pool, cr);
+    ErrorHandler err = new ErrorHandler(cr.pool, cr, new Vector());
     err.ui = this;
     cr.on = err;
     try {

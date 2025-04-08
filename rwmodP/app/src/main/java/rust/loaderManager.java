@@ -13,6 +13,7 @@ import org.libDeflate.zipFile;
 import rust.iniobj;
 import rust.loader;
 import org.libDeflate.zipEntry;
+import java.util.*;
 
 public abstract class loaderManager implements Callable,Canceler {
  String rootPath;
@@ -23,17 +24,16 @@ public abstract class loaderManager implements Callable,Canceler {
  ErrorHandler uih;
  ConcurrentHashMap Zipmap;
  ParallelDeflate cre;
+ Vector<Throwable> errlist;
  public loaderManager(File in, File ou, UIPost ui) {
   In = in;
   Ou = ou;
   Zipmap = new ConcurrentHashMap();
   back = ui;
+  errlist = new Vector();
+  uih = new ErrorHandler(UiHandler.ui_pool, this, errlist);
  }
- public void init() {
-  ErrorHandler uih = new ErrorHandler(UiHandler.ui_pool, this);
-  this.uih = uih;
-  uih.addN(this);
- }
+ public final void init() {uih.addN(this);}
  public loader addLoder(zipEntry za, String putkey, String src, String str, boolean isini) throws Throwable {
   loader lod = new loader();
   loader obj=(loader)Zipmap.putIfAbsent(putkey, lod);
@@ -48,15 +48,21 @@ public abstract class loaderManager implements Callable,Canceler {
   return lod;
  }
  public void cancel() {
-  UiHandler.close(Zip);
+  zipFile zip=Zip;
+  if (zip != null){
+   synchronized (zip){
+	UiHandler.close(zip);
+	Zip = null;
+   }
+  }
   ErrorHandler uih=this.uih;
-  ParallelDeflate cre=this.cre;   
   if (uih != null) {
    uih.ui = back;
-   if (uih.cancel() && cre != null)
-    uih.err.addAll(cre.on.err);
+   uih.cancel();
   }
-  if (cre != null)cre.cancel();
+  ParallelDeflate cre=this.cre;   
+  if (cre != null)
+   cre.cancel();
  }
  public abstract loader getLoder(String str) throws Throwable;
  public static void lod(iniobj ini, loader orr[]) {
@@ -71,6 +77,6 @@ public abstract class loaderManager implements Callable,Canceler {
   if (Ou != null)map = iniobj.clone(map);
   iniobj obj= new iniobj(map);
   ini.put = obj;
-  lod(obj, ini.copy.copy);
+  lod(obj, ini.copy.list);
  }
 }

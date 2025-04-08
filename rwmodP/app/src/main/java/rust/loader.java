@@ -253,9 +253,8 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
    loaders key=this.copy;
    tag2: {
     tag: {
-     loader[] or=key.copy;
-     for (loader orr:or)
-      if (orr != null && !orr.type)break tag;
+     for (loader lod:key.list)
+      if (lod != null && !lod.type)break tag;
      tas.lod(this);
 	 break tag2;
     }
@@ -277,17 +276,7 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
  }
  iniobj put;
  loaders copy;
- boolean inSet;
- public boolean inSet() {
-  boolean in=inSet;
-  if (in)return in;
-  synchronized (this) {
-   in = inSet;
-   if (in)return in;
-   inSet = true;
-  }
-  return in;
- }
+ int lvl=-1;
  volatile HashMap old;
  volatile boolean type;
  boolean isini;
