@@ -228,7 +228,7 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
          str = str.substring(5);
          con = tas.rootPath;
         } else con = file;
-        lod = tas.getLoder(con.concat(str));
+        lod = tas.getLoder(ImageUtil.concat(con,str));
        } else lod = (loader)rwlib.libMap.get(str.substring(5).toLowerCase());
        orr[i + 1] = lod;
       }
@@ -237,7 +237,7 @@ public class loader extends IoWriter implements Callable,Runnable,Comparable {
 	if (isini) {
 	 int len=file.length();
 	 while (true) {
-	  file = file.concat("all-units.template");
+	  file = ImageUtil.concat(file,("all-units.template"));
 	  loader all = tas.getLoder(file);
 	  if (all != null) {
        orr[0] = all;

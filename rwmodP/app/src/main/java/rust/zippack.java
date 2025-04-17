@@ -60,7 +60,7 @@ public class zippack implements Runnable,UIPost {
       if (!name.endsWith("/")) {
        int n=name.length() - 4;          
        if (!name.regionMatches(true, n, ".ogg", 0, 4) && !name.regionMatches(true, n, ".wav", 0, 4))
-        name = name.concat("/");
+        name = ImageUtil.concat(name,"/");
        ZipEntryM put=ZipUtil.newEntry(name, mode);
        put.size = (int)en.size;
        writeOrCopy(cr, zip, en, put , raw);

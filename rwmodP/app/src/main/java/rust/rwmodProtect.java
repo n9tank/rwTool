@@ -518,7 +518,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
      lowmap.putIfAbsent(icase, zipEntry);
    }
    rootPath = name;
-   zipEntry inf=toPath(name.concat("mod-info.txt"));
+   zipEntry inf=toPath(ImageUtil.concat(name, "mod-info.txt"));
    if (inf != null) {
     loader ini=new loader();
     HashMap<String, section> info=loader.load(ZipInputGet.reader(zip, inf, StandardCharsets.UTF_8));
@@ -529,7 +529,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
      if (str != null && str.length() > 0) {
       str = str.replace('\\', '/');
       if (!str.endsWith("/"))
-       str = str.concat("/");
+       str = ImageUtil.concat(str, "/");
       musicPath = str;
       int max=splitcous;
       int oggput=new Random().nextInt(BGMShortCharCounts * Math.max(1, max) + 1);
@@ -551,7 +551,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
 	if (type == 4 || istem) {
 	 addLoder(zipEntry, name, name, null, !istem);
 	} else if (type == 0) {
-     zippack.writeOrCopy(cre, zip, zipEntry, ZipUtil.newEntry(loader.getName(name).concat("/"), 12), raw);
+     zippack.writeOrCopy(cre, zip, zipEntry, ZipUtil.newEntry(ImageUtil.concat(loader.getName(name),"/"), 12), raw);
 	} else if (type >= 5) {
      ogg.add(zipEntry);
     }
