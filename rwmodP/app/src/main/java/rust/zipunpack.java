@@ -1,19 +1,11 @@
 package rust;
-import java.io.File;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
-import java.nio.file.StandardOpenOption;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Random;
-import java.util.TreeMap;
-import org.libDeflate.RC;
-import org.libDeflate.UIPost;
-import org.libDeflate.ZipEntryM;
-import org.libDeflate.zipFile;
-import rust.UiHandler;
+import java.io.*;
+import java.nio.*;
+import java.nio.channels.*;
+import java.nio.file.*;
+import java.util.*;
+import org.libDeflate.*;
+import rust.*;
 
 public class zipunpack implements Runnable {
  File in;
@@ -56,18 +48,21 @@ public class zipunpack implements Runnable {
   }
   return new name(name, conts);
  }
+ public static int[] append(int arr[],int v,int i){
+  if(arr.length<=i)
+   arr= Arrays.copyOf(arr,i<<1);
+  arr[i]=v;
+  return arr;
+ }
  UIPost ui;
  public zipunpack(File in, UIPost ui) {
   this.in = in;
   this.ui = ui;
  }
- public static final long off(TreeMap offtree, long zipcenpos, long zipcenlen, long tsizeoff, long zpos) {
+ public static final long off(long zipcenpos, long zipcenlen, long tsizeoff, long zpos) {
   if (zpos > zipcenpos + zipcenlen)
    return zpos -= zipcenlen;
   if (zpos > zipcenpos) {
-   //用于处理特殊注入壳导致无法读取
-   Map.Entry<Integer,Integer> gen=offtree.lowerEntry((int)(zpos - zipcenpos));
-   if (gen != null)zpos += gen.getValue();
    zpos += tsizeoff;
   }
   return zpos;
@@ -87,7 +82,6 @@ public class zipunpack implements Runnable {
   int lastoff=off;
   int drcoff=-off;
   HashSet set=new HashSet();
-  TreeMap<Integer,Integer> tree=new TreeMap();
   Random ran=new Random();
   int censub=buf.capacity() - 46;
   while (off <= censub) {
@@ -105,11 +99,11 @@ public class zipunpack implements Runnable {
    int cmlen=buf.getShort(off += 2) & 0xffff;
    off += 2;
    long zpos32=buf.getInt(off += 8) & 0xffffffffL;
-   buf.putInt(off, (int)(off(tree, cenpos, cenlen, tsize, zpos32 + headoff)));
+   buf.putInt(off, (int)(off(cenpos, cenlen, tsize, zpos32 + headoff)));
    off += 4;
    buf.position(off);
    byte name[]=new byte[namelen];
-   buf.get(name);
+   buf.get(name); 
    zipunpack.name type=getName(ByteBuffer.wrap(name), set, ran);
    if (type.conts)buf.putInt(timeIn, time);
    buf.position(lastoff);
@@ -120,11 +114,9 @@ public class zipunpack implements Runnable {
    drc.put(nstr);
    int addlen = nstr.limit() - namelen;
    drc.putShort(nameIndrc, (short)(namelen + addlen));
-   addall += addlen;
+   addall+=addlen;
    off += namelen;
    lastoff = off;
-   if (addlen != 0)
-    tree.put(off + drcoff - 1, addall);
    int zip64=off;
    int exoff=exlen + off;
    while (zip64 + 4 < exoff) {
@@ -145,7 +137,7 @@ public class zipunpack implements Runnable {
      sz -= 8;
      if (sz < 8)break;
      if (zpos32 == 0xffffffffL) {
-      int zpos = (int)(off(tree, cenpos, cenlen, tsize, buf.getLong(zip64) + headoff));
+      int zpos = (int)(off(cenpos, cenlen, tsize, buf.getLong(zip64) + headoff));
       drc.putInt(nameIndrc + 14, zpos);
      }
     }

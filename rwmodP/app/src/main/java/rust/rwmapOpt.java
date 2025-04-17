@@ -8,7 +8,6 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -29,6 +28,7 @@ import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.*;
+import java.nio.*;
 
 
 public class rwmapOpt implements Runnable {
@@ -215,7 +215,7 @@ public class rwmapOpt implements Runnable {
   ByteBuffer buffer=RC.newbuf(size);
   Node data = getFirst(0, item);
   String dataValue = data.getTextContent().trim();
-  ByteBuffer basebuf=ByteBuffer.wrap(Base64.getDecoder().decode(dataValue));
+  ByteBuffer basebuf=ByteBuffer.wrap(ImageUtil.base64decode(dataValue));
   def.mode = data.getAttributes().getNamedItem("compression").getNodeValue().equals("gzip") ?Libdeflate.GZIP: Libdeflate.ZLIB;
   int len= def.decompress(basebuf, buffer);
   if (len < 0)throw new IOException();
@@ -241,10 +241,10 @@ public class rwmapOpt implements Runnable {
   try {
    DocumentBuilder docBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
    /*防止XXE没有任何意义
-   docBuilder.setEntityResolver(new EntityResolver(){
-	 public InputSource resolveEntity(String publicId, String systemId) throws IOException{
-	  throw new IOException();
-	 }
+	docBuilder.setEntityResolver(new EntityResolver(){
+	public InputSource resolveEntity(String publicId, String systemId) throws IOException{
+	throw new IOException();
+	}
 	});*/
    Document document = docBuilder.parse(in);
    HashMap tiles = new HashMap();
@@ -551,7 +551,7 @@ public class rwmapOpt implements Runnable {
     List<rwmapOpt.base64png> list=en.getValue();
     int size=getPngSize(list, treeTile, tiles);
     byte irr[]=ImageUtil.tmxOpt(list, treeTile, tiles, w, h, max, size);
-    por.setTextContent(Base64.getEncoder().encodeToString(irr));
+    por.setTextContent(ImageUtil.base64encode(irr));
     map.insertBefore(tile, pr);
     for (rwmapOpt.base64png png:list) {
      if (png == null)continue;
@@ -588,7 +588,7 @@ public class rwmapOpt implements Runnable {
      data = getFirst(0, data);
      ByteBuffer result=deflate(defc, warp);
      data.getAttributes().getNamedItem("compression").setNodeValue("zlib");
-     data.setTextContent(new String(Base64.getEncoder().encode(result).array()));
+     data.setTextContent(ImageUtil.base64encode(result));
     }
    } finally {
     defc.close();
@@ -610,7 +610,8 @@ public class rwmapOpt implements Runnable {
   for (int i=0,l=list.getLength();i < l;++i) {
    Node item=list.item(i);
    if (item.getNodeType() == Node.TEXT_NODE) {
-	out.write(iniobj.trims(item.getNodeValue()));
+	CharBuffer buf=iniobj.trims(item.getNodeValue());
+	out.write(buf.array(), 0, buf.limit());
 	continue;
    }
    out.write('<');

@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.nio.*;
+import java.nio.charset.*;
 
 public class iniobj {
  public HashMap put;
@@ -166,21 +168,27 @@ public class iniobj {
   }
   return -1;
  }
- //用于解决正则表达式太慢的问题（10倍差距）
- //如果提供更多的方法可以避免String的复制开销，不过没必要
- public static String trims(String str) {
-  int off=0;
+ public static ByteBuffer base64trims(String str) {
+  int k=0;
+  int len=str.length();
+  byte[] cr=new byte[len];
+  for (int i = 0; i < len; i++) {
+   byte c =(byte)str.charAt(i);
+   if (c != '\n')
+    cr[k++] = c;
+  }
+  return ByteBuffer.wrap(cr, 0, k);
+ }
+ public static CharBuffer trims(String str) {
+  int k=0;
   int len=str.length();
   char[] cr=new char[len];
   for (int i = 0; i < len; i++) {
-   char c = str.charAt(i);
-   if (c == ' ' || c == '\n')
-    --off;
-   else
-    cr[i + off] = c;
+   char c =str.charAt(i);
+   if (c != ' ' && c != '\n')
+    cr[k++] = c;
   }
-  if (off == 0)return str;
-  return new String(cr, 0, len + off);
+  return CharBuffer.wrap(cr, 0, k);
  }
  public static String copyValue(HashMap<String,section> ini, String list, String k) {
   if (list != null && list.length() > 0 && ! list.equals("IGNORE")) {

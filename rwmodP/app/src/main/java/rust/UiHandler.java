@@ -18,7 +18,7 @@ public class UiHandler {
  }
  public static File out(File path, int i, String end) {
   String name=path.getName();
-  return new File(path.getParent(), name.substring(0, name.length() - i).concat(end));
+  return new File(path.getParent(), ImageUtil.concat(name.substring(0, name.length() - i),end));
  }
  public static List<Throwable> toList(Throwable e) {
   return e == null ?null: Collections.singletonList(e);
