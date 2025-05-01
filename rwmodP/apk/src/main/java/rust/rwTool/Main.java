@@ -116,6 +116,7 @@ public class Main extends Activity {
   run.init();
   arr.add(ui);
  }
+ //实际上可以在权限前加载，不过可以兼容配置文件在外部的情况
  public void init() {
   if (uselib)lib();
   try {

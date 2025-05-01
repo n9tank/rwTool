@@ -313,7 +313,7 @@ where
     V: Borrow<FxHashMap<K, K>>,
 {
     let mut size: usize = 0;
-    for v in src.borrow().values() {
+    for v in src.values() {
         let v = v.borrow();
         let vlen = v.len();
         if vlen == 0 {

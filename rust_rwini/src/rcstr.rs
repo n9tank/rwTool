@@ -26,6 +26,7 @@ impl Borrow<str> for Rcstr {
 pub struct Strslice<T: Deref<Target = str>> {
     src: T,
     slice: *const str,
+    _marker: PhantomData<*const str>,
 }
 impl<T: Deref<Target = str>> Strslice<T> {
     pub fn new(src: T, start: usize) -> Self {
@@ -33,6 +34,7 @@ impl<T: Deref<Target = str>> Strslice<T> {
         Self {
             src,
             slice: slice_ptr,
+            _marker: PhantomData,
         }
     }
     pub fn new_range(src: T, start: usize, end: usize) -> Self {
@@ -40,6 +42,7 @@ impl<T: Deref<Target = str>> Strslice<T> {
         Self {
             src,
             slice: slice_ptr,
+            _marker: PhantomData,
         }
     }
 }
@@ -54,13 +57,13 @@ impl<'a, T: Deref<Target = str>> Deref for Strslice<T> {
 
 impl<'a, T: Deref<Target = str>> Borrow<str> for Strslice<T> {
     fn borrow(&self) -> &str {
-        (*self)
+        unsafe { &*self.slice }
     }
 }
 
 impl<'a, T: Deref<Target = str>> PartialEq for Strslice<T> {
     fn eq(&self, other: &Self) -> bool {
-        (*self).eq(*other)
+        (unsafe { &*self.slice }).eq(unsafe { &*other.slice })
     }
 }
 
@@ -68,18 +71,18 @@ impl<'a, T: Deref<Target = str>> Eq for Strslice<T> {}
 
 impl<'a, T: Deref<Target = str>> Hash for Strslice<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        (*self).hash(state);
+        (unsafe { &*self.slice }).hash(state);
     }
 }
 
 impl<'a, T: Deref<Target = str>> PartialOrd for Strslice<T> {
     fn partial_cmp(&self, other: &Strslice<T>) -> Option<Ordering> {
-        (*self).partial_cmp(*other)
+        (unsafe { &*self.slice }).partial_cmp(unsafe { &*other.slice })
     }
 }
 
 impl<'a, T: Deref<Target = str>> Ord for Strslice<T> {
     fn cmp(&self, other: &Self) -> Ordering {
-        (*self).cmp(*other)
+        (unsafe { &*self.slice }).cmp(unsafe { &*other.slice })
     }
 }
