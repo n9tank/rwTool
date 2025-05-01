@@ -63,6 +63,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
    }while(++i < len);
    zippack.head = irr;
   }
+  zipunpack.safe_mode=set.get("safe").length() > 0;
   loader.boolset = toSet(set.get("bool"));
   zippack.zip64enmode = set.get("end").length() > 0;
   char irr[]=set.get("split").toCharArray();
