@@ -1,19 +1,17 @@
 
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Rect;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.regex.Pattern;
+import android.graphics.*;
+import java.io.*;
+import java.util.*;
+import java.util.regex.*;
 
 public class CharList {
  //private static final Pattern skip= Pattern.compile("\\p{C}");
  public static void charList(int start, int max, boolean em, BufferedWriter buff) throws Exception {
-  ArrayList crr=new ArrayList();
-  ArrayList err=new ArrayList();
+  ArrayList<String> crr=new ArrayList();
+  ArrayList<String> err=new ArrayList();
   Paint pain=new Paint();
+  Typeface customTypeface = Typeface.createFromFile("/sdcard/.ttf");
+  pain.setTypeface(customTypeface);
   Rect rec=new Rect();
   pain.setAntiAlias(true);
   pain.setTextSize(40);
