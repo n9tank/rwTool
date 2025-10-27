@@ -317,7 +317,7 @@ public class rwmodProtect extends loaderManager implements Consumer {
   }
   return st;
  }
- void addRealPath(String add, int type, StringBuilder buff, StringBuilder bf) throws Throwable {
+ void addRealPath(String add, int type, StringBuilder buff,final StringBuilder bf) throws Throwable {
   int i = 0;
   char c=0;
   if (type == 0)c = '*';
@@ -329,17 +329,16 @@ public class rwmodProtect extends loaderManager implements Consumer {
   zipEntry ze = toPath(str);
   if (ze != null) {
    String name=ze.name;
-   Object obj = resmap.put(name, "");
-   if (obj == null) {
-	resmap.put(name, str = safeName(getType(name), bf));
-	ZipEntryM outen=ZipUtil.newEntry(str, 12);
-	zippack.writeOrCopy(cre, Zip, ze, outen, raw);
-   } else {
-	while (obj == "")
-	 obj = resmap.get(name);
-	//CSA自旋 
-	str = (String)obj;
-   }
+   str = (String)resmap.computeIfAbsent(name, new Function(){
+	 public Object apply(Object obj){
+	  String str= safeName(getType((String)obj), bf);
+	  try{
+	   zippack.writeOrCopy(cre, Zip, ze, ZipUtil.newEntry(str, 12), raw);
+	  }catch(Throwable e){
+	   uih.onError(e);
+	  }
+	  return str;
+	 }});
   }
   buff.append(str);
   if (i > 0)buff.append(add, i, add.length());
